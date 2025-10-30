@@ -3,14 +3,14 @@ from django.http import HttpResponse, JsonResponse
 from django.core.files import File
 from cryptography.fernet import Fernet
 from django.core.files.base import ContentFile
-from .Hashing import createHash
+
 from datetime import date
 import json
 
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import File_Up , Users
+from .models import File_Up 
 
 import os
 
@@ -127,29 +127,3 @@ def view_file(request):
     response['Content-Disposition'] = f'inline; filename="{original_name}"'
 
     return response
-
-
-#User Auth and Management
-
-@csrf_exempt
-def signUp(request):
-    salt = "Encrypt@12345#"
-    data  = json.loads(request.body)
-    username = data.get("username")
-    password = data.get("password")
-    email = data.get("email")
-    if not username or not password or not email:
-        return JsonResponse({"error": "Missing parameters"}, status=400)
-    hashed_password = createHash(password,salt)
-    User_obj  = Users(username=username, password=hashed_password, email=email)
-    User_obj.save()
-    return JsonResponse({"message": "User created successfully"}, status=201)
-
-
-
-
-
-
-
-
-
