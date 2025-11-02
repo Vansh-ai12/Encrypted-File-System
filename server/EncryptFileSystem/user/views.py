@@ -83,3 +83,38 @@ def logout(request):
     response = JsonResponse({"message": "Logout successful"}, status=200)
     response.delete_cookie("session", path="/")
     return response
+
+
+def changePassword(request):
+    salt = "Encrypt@12345#"
+    data  = json.loads(request.body)
+    username = data.get("username")
+    new_password = data.get("new_password")
+    if not username or not new_password:
+        return JsonResponse({"error": "Missing parameters"}, status=400)
+    try:
+        user = Users.objects.get(username=username)
+    except Users.DoesNotExist: 
+        return JsonResponse({"error": "User does not exist"}, status=404)
+    
+    hashed_password = createHash(new_password, salt)
+    user.password = hashed_password
+    user.save()
+    return JsonResponse({"message": "Password changed successfully"}, status=200)
+
+def proUser(request):
+    cookie = cookies.SimpleCookie()
+    cookie.load(request.META.get("HTTP_COOKIE", ""))
+    session_token = cookie.get("session")
+    if not session_token:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    try:
+        user = Users.objects.get(token=session_token.value)
+    except Users.DoesNotExist:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    
+    user.role = "pro"
+    user.save()
+    return JsonResponse({"message": "User upgraded to premium"}, status=200)
+
+

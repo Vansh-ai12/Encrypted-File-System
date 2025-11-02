@@ -8,3 +8,4 @@ class Users(models.Model):
     email = models.EmailField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     token = models.CharField(max_length=255, blank=True, null=True)
+    role = models.CharField(max_length=50, default='user')
