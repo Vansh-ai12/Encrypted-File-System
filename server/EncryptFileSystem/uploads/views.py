@@ -1,16 +1,17 @@
 
+import secrets
 from django.http import HttpResponse, JsonResponse
 from django.core.files import File
 from cryptography.fernet import Fernet
 from django.core.files.base import ContentFile
-
+from user.models import Users
 from datetime import date
 import json
 
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import File_Up 
+from .models import FileUpload
 
 import os
 
@@ -22,22 +23,38 @@ def upload_file(request):
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
-    if 'file' not in request.FILES:
-        return JsonResponse({"error": "No file uploaded"}, status=400)
+    try:
+        data = json.loads(request.body)
 
-    uploaded_file = request.FILES['file']
-    
-    
-    data=handleUploadedFile(uploaded_file)
+    except:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    token = request.COOKIES.get("session")
 
-    return JsonResponse({"message": "File uploaded successfully" , "id": data["id"], "date": str(data["date"]) , "name": data["name"]}, status=201)
+    user = Users.objects.filter(token=token).first()
 
-
-
-
+    if not user:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
 
 
-def handleUploadedFile(f):
+    File_Up = FileUpload()
+    File_Up.user = user
+    File_Up.ciphertext = data.get("ciphertextBase64")
+    File_Up.iv = data.get("ivBase64")
+    File_Up.salt = data.get("saltBase64")
+    File_Up.original_name = data.get("originalName")
+    File_Up.mime_type = data.get("mimeType")
+    File_Up.size = data.get("size")
+    File_Up.save()
+
+
+    return JsonResponse({
+        "message": "Received full encrypted payload",
+        "received": "Success",
+    }, status=200)
+
+
+
+def handleUploadedFile(f,user):
     key = "JU3Y0V88NR_jenIboqX_CGoneO-S3Aib2rFd4PnlNpk="
 
     
@@ -46,11 +63,13 @@ def handleUploadedFile(f):
     fernet = Fernet(key)
     encrypted = fernet.encrypt(data)
     encrypted_filename = f.name + "_encrypted"
-    file_instance = File_Up()
+    file_instance = FileUpload()
     file_instance.title = encrypted_filename
+    file_instance.user = user
     file_instance.file.save(encrypted_filename,ContentFile(encrypted), save=False)
+    file_instance.file_id = secrets.token_hex(8)
     file_instance.save()
-    return {"id": file_instance.file_id, "date": file_instance.created_at, "name":f.name}
+    return {"id": file_instance.file_id, "date": file_instance.created_at, "name":f.name , "User"  :user.username}
 
 
 
@@ -77,7 +96,7 @@ def view_file(request):
     if not file_id:
         return JsonResponse({"error": "Missing parameters"}, status=400)
 
-    file_obj = File_Up.objects.filter( file_id=file_id).first()
+    file_obj = FileUpload.objects.filter( file_id=file_id).first()
     if not file_obj:
         return JsonResponse({"error": "File not found in DB"}, status=404)
 

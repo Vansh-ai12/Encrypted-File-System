@@ -102,19 +102,8 @@ def changePassword(request):
     user.save()
     return JsonResponse({"message": "Password changed successfully"}, status=200)
 
-def proUser(request):
-    cookie = cookies.SimpleCookie()
-    cookie.load(request.META.get("HTTP_COOKIE", ""))
-    session_token = cookie.get("session")
-    if not session_token:
-        return JsonResponse({"error": "Unauthorized"}, status=401)
-    try:
-        user = Users.objects.get(token=session_token.value)
-    except Users.DoesNotExist:
-        return JsonResponse({"error": "Unauthorized"}, status=401)
-    
-    user.role = "pro"
-    user.save()
-    return JsonResponse({"message": "User upgraded to premium"}, status=200)
+
+
+
 
 

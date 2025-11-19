@@ -1,9 +1,9 @@
 from django.contrib import admin
 
 
-from .models import File_Up,Users
+from .models import FileUpload
 # Register your models here.
 
 
-admin.site.register(File_Up)
-admin.site.register(Users)
+admin.site.register(FileUpload)
+

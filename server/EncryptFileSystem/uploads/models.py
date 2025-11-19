@@ -1,18 +1,27 @@
+import secrets
 from django.db import models
-import uuid
-
 from user.models import Users
-# Create your models here.
-
-def generate_uuid():
-    return str(uuid.uuid4())
 
 
-class File_Up(models.Model):
-    title = models.CharField(max_length=255)
-    file = models.FileField()
-    file_id = models.CharField(max_length=36, default=generate_uuid,unique=True, editable=False)
-    created_at = models.DateField(auto_now_add=True)
-    owner = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='files', null=True)
+def generate_file_id():
+    return secrets.token_hex(8)
 
 
+class FileUpload(models.Model):
+    # File metadata
+    file_id = models.CharField(max_length=100, unique=True, default=generate_file_id)
+    user = models.ForeignKey(Users, on_delete=models.CASCADE, related_name="uploads")
+
+    original_name = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=100,null=True)
+    size = models.BigIntegerField(null=True)
+
+    # Encrypted data
+    ciphertext = models.TextField(null=True)   # store ciphertextBase64
+    iv = models.CharField(max_length=255,null=True)
+    salt = models.CharField(max_length=255,null=True)
+
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.original_name} ({self.file_id})"
