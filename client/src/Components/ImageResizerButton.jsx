@@ -8,6 +8,7 @@ export default function ImageResizerButton({
   className = "",
 }) {
   return (
+    
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
