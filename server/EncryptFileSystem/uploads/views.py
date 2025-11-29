@@ -49,100 +49,63 @@ def upload_file(request):
 
     return JsonResponse({
         "message": "Received full encrypted payload",
-        "received": "Success",
+        "file_id": File_Up.file_id,
     }, status=200)
 
 
 
-def handleUploadedFile(f,user):
-    key = "JU3Y0V88NR_jenIboqX_CGoneO-S3Aib2rFd4PnlNpk="
-
-    
-    data  = f.read()
-
-    fernet = Fernet(key)
-    encrypted = fernet.encrypt(data)
-    encrypted_filename = f.name + "_encrypted"
-    file_instance = FileUpload()
-    file_instance.title = encrypted_filename
-    file_instance.user = user
-    file_instance.file.save(encrypted_filename,ContentFile(encrypted), save=False)
-    file_instance.file_id = secrets.token_hex(8)
-    file_instance.save()
-    return {"id": file_instance.file_id, "date": file_instance.created_at, "name":f.name , "User"  :user.username}
 
 
 
-
-
-
-def decrypt_file(file):
-    key = "JU3Y0V88NR_jenIboqX_CGoneO-S3Aib2rFd4PnlNpk="
-    f=  Fernet(key)
-    decrypted = f.decrypt(file)
-    return decrypted
 
 @csrf_exempt
 def view_file(request):
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
+    # Validate JSON
     try:
-        data = json.loads(request.body)  
+        data = json.loads(request.body)
         file_id = data.get("id")
-    except json.JSONDecodeError:
+    except:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     if not file_id:
-        return JsonResponse({"error": "Missing parameters"}, status=400)
+        return JsonResponse({"error": "Missing file id"}, status=400)
 
-    file_obj = FileUpload.objects.filter( file_id=file_id).first()
+    # Validate user session
+    token = request.COOKIES.get("session")
+    user = Users.objects.filter(token=token).first()
+
+    if not user:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    # Fetch file only if owned by user
+    file_obj = FileUpload.objects.filter(file_id=file_id, user=user).first()
     if not file_obj:
-        return JsonResponse({"error": "File not found in DB"}, status=404)
+        return JsonResponse({"error": "File not found"}, status=404)
 
-    file_obj.file.open('rb')
-    encrypted_data = file_obj.file.read()
-    file_obj.file.close()
-
-
-    decrypted_data = decrypt_file(encrypted_data)
-
-    original_name = os.path.basename(file_obj.title).replace("_encrypted", "")
-    ext = os.path.splitext(original_name)[1].lower()
-    mime_types = {
-    ".ipynb": "application/json",  
-    ".pdf": "application/pdf",      
-    ".doc": "application/msword",   
-    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
-    ".xls": "application/vnd.ms-excel",  
-    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  
-    ".ppt": "application/vnd.ms-powerpoint", 
-    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation", 
-    ".txt": "text/plain",           
-    ".csv": "text/csv",             
-    ".json": "application/json",   
-    ".html": "text/html",           
-    ".htm": "text/html",
-    ".png": "image/png",            
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".bmp": "image/bmp",
-    ".mp3": "audio/mpeg",           
-    ".wav": "audio/wav",
-    ".mp4": "video/mp4",            
-    ".mov": "video/quicktime",
-    ".avi": "video/x-msvideo",
-    ".zip": "application/zip",      
-    ".rar": "application/vnd.rar",
-    ".7z": "application/x-7z-compressed"
-}
-
-    content_type = mime_types.get(ext, "application/octet-stream") 
+    # Return encrypted data so frontend decrypts
+    return JsonResponse({
+        "ciphertextBase64": file_obj.ciphertext,
+        "ivBase64": file_obj.iv,
+        "saltBase64": file_obj.salt,
+        "originalName": file_obj.original_name,
+        "mimeType": file_obj.mime_type,
+    }, status=200)
 
 
-    response = HttpResponse(decrypted_data, content_type=content_type)
 
-    response['Content-Disposition'] = f'inline; filename="{original_name}"'
+@csrf_exempt
+def list_files(request):
+    token = request.COOKIES.get("session")
+    user = Users.objects.filter(token=token).first()
 
-    return response
+    if not user:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    files = FileUpload.objects.filter(user=user).values(
+        "file_id", "original_name", "size", "mime_type"
+    )
+
+    return JsonResponse(list(files), safe=False, status=200)

@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import Users
 from http import cookies
-# Create your views here.
+
 
 @csrf_exempt
 def signUp(request):
@@ -29,43 +29,66 @@ def signUp(request):
     
     response = JsonResponse({"message": "User created successfully"}, status=201)
     response.set_cookie(
-        key="session",
-        value=token,
-        path="/",
-        httponly=True,
-        samesite="Lax"
-    )
+    key="session",
+    value=token,
+    path="/",
+    httponly=True,
+    secure=True,  
+    samesite="None",
+    max_age=60*60*24*7  
+)
+
     return response
-
-
 @csrf_exempt
 def login(request):
-    salt= "Encrypt@12345#"
-    data  = json.loads(request.body)
-    username = data.get("username")
-    password = data.get("password")
-    if not username or not password:
-        return JsonResponse({"error": "Missing parameters"}, status=400)
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    salt = "Encrypt@12345#"
+
     try:
-        user = Users.objects.get(username=username)
-    except Users.DoesNotExist: 
-        return JsonResponse({"error": "Invalid username or password"}, status=401)
+        data = json.loads(request.body)
+    except:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        return JsonResponse({"error": "Missing parameters"}, status=400)
+
+    try:
+        user = Users.objects.get(email=email)
+    except Users.DoesNotExist:
+        return JsonResponse({"error": "Invalid email or password"}, status=401)
+
     hashed_password = createHash(password, salt)
+
     if user.password != hashed_password:
-        return JsonResponse({"error": "Invalid username or password"}, status=401)
-    token =  secrets.token_hex(32)
+        return JsonResponse({"error": "Invalid email or password"}, status=401)
+
+   
+    token = secrets.token_hex(32)
+    Users.objects.filter(email=email).update(token=None)
     user.token = token
     user.save()
+
+    print("LOGIN TOKEN SET:", token)
+
     response = JsonResponse({"message": "Login successful"}, status=200)
     response.set_cookie(
         key="session",
         value=token,
         path="/",
         httponly=True,
-        samesite="Lax",
-        expires=604800
+        secure=True,
+        samesite="None",
+        max_age=60 * 60 * 24 * 7
     )
+
     return response
+
+
 
 
 @csrf_exempt
@@ -101,6 +124,19 @@ def changePassword(request):
     user.password = hashed_password
     user.save()
     return JsonResponse({"message": "Password changed successfully"}, status=200)
+
+
+@csrf_exempt
+def check_session(request):
+    token = request.COOKIES.get("session")
+
+    user = Users.objects.filter(token=token).first()
+
+    if user:
+        return JsonResponse({"loggedIn": True, "username": user.username})
+    else:
+        return JsonResponse({"loggedIn": False})
+
 
 
 

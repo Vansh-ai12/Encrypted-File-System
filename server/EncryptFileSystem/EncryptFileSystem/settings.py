@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     'uploads',
     "corsheaders",
     'user',
+    'board',
+    'boardOrganisation'
 
 ]
 MIDDLEWARE = [
@@ -161,3 +163,20 @@ CORS_ALLOW_HEADERS = [
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+CORS_ALLOW_ALL_HEADERS = True
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+]
+
+
+SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 days
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False

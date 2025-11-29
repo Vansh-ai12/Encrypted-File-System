@@ -8,7 +8,7 @@ def generate_file_id():
 
 
 class FileUpload(models.Model):
-    # File metadata
+
     file_id = models.CharField(max_length=100, unique=True, default=generate_file_id)
     user = models.ForeignKey(Users, on_delete=models.CASCADE, related_name="uploads")
 
@@ -16,8 +16,8 @@ class FileUpload(models.Model):
     mime_type = models.CharField(max_length=100,null=True)
     size = models.BigIntegerField(null=True)
 
-    # Encrypted data
-    ciphertext = models.TextField(null=True)   # store ciphertextBase64
+
+    ciphertext = models.TextField(null=True)  
     iv = models.CharField(max_length=255,null=True)
     salt = models.CharField(max_length=255,null=True)
 

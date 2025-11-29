@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Logo from "@/Components/Logo";
 import Profile from "@/Components/Profile";
 import { PDFDocument } from "pdf-lib";
@@ -8,6 +9,8 @@ import { PDFDocument } from "pdf-lib";
 export default function PlaygroundButton() {
   const fileInputRef = useRef(null);
   const [images, setImages] = useState([]);
+
+  const Router = useRouter();
 
   // Handle image upload
   const handleImageUpload = (e) => {
@@ -177,6 +180,7 @@ export default function PlaygroundButton() {
             transition-all duration-200
             hover:cursor-pointer
           "
+          onClick = {()=> Router.push("/dashboard/playground/odoboard") }
         >
           OdoBoard
         </button>

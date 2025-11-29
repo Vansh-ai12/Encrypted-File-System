@@ -1,24 +1,50 @@
 "use client";
 
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 
-
-export default function Logo() {
+export default function OdonLogo({ size = 64, className = "" }) {
   const router = useRouter();
+  const height = size;
+  const fontSize = Math.round(size * 0.6);
+
+  const handleClick = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/user/check/", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (data.loggedIn) {
+        router.push("/dashboard");
+      } else {
+        router.push("/");
+      }
+    } catch {
+      router.push("/");
+    }
+  };
+
   return (
-    <div className="flex items-center justify-center font-extrabold text-6xl tracking-tight select-none hover:cursor-pointer"
-      onClick={()=>router.push('/')}
-    >
-      <span className="relative mr-1">
-        <span className="text-black">O</span>
-        <span className="absolute top-0 left-0 h-full w-1/2 overflow-hidden text-indigo-500">
-          O
-        </span>
-      </span>
-      <span className="text-gray-800">
-        d
-        <span className="text-indigo-500 ">o</span>
-        n
+    <div className={`inline-flex items-center ${className}`}
+         onClick={handleClick}
+         style={{ cursor: "pointer" }}>
+      {/* SVG and text stay the same */}
+      <svg width={height} height={height} viewBox="0 0 100 100">
+        <path d="M50,5 A45,45 0 0 0 5,50 A45,45 0 0 0 50,95" fill="#7c3aed" />
+        <path d="M50,95 A45,45 0 0 0 95,50 A45,45 0 0 0 50,5" fill="#0f172a" />
+        <circle cx="50" cy="50" r="26" fill="white" />
+      </svg>
+
+      <span style={{
+        fontWeight: 800,
+        fontSize,
+        color: "#0f172a",
+        display: "flex",
+        alignItems: "center",
+      }}>
+        d<span style={{ color: "#7c3aed" }}>o</span>n
       </span>
     </div>
   );

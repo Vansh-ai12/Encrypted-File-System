@@ -1,16 +1,22 @@
 "use client";
 import Logo from "../Components/Logo";
+import { useRouter } from "next/navigation";
 
 export default function HomePage() {
+  const router = useRouter();
   return (
     <div className="flex-col">
       <div className="flex items-center px-8 py-6 justify-between bg-white rounded-2xl shadow-md border border-gray-100">
         <Logo />
         <div className="flex items-center space-x-6 font-medium text-gray-700">
-          <button className="px-4 py-2 border border-gray-300 rounded-md transition-all duration-200 hover:border-indigo-500 hover:text-indigo-500 hover:cursor-pointer">
+          <button className="px-4 py-2 border border-gray-300 rounded-md transition-all duration-200 hover:border-indigo-500 hover:text-indigo-500 hover:cursor-pointer"
+            onClick = {()=>router.push("/login")}
+          > 
             Login
           </button>
-          <button className="px-4 py-2 border border-gray-300 rounded-md transition-all duration-200 hover:border-indigo-500 hover:text-indigo-500 hover:cursor-pointer">
+          <button className="px-4 py-2 border border-gray-300 rounded-md transition-all duration-200 hover:border-indigo-500 hover:text-indigo-500 hover:cursor-pointer"
+            onClick = {()=>router.push("/signup")}
+          >
             Sign up
           </button>
         </div>
