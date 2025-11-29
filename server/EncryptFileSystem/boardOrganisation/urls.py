@@ -9,6 +9,11 @@ urlpatterns = [
     path("getOrganisationMembers/<str:orgId>/",views.getOrganisationMembers,name="getMembers"),
     path("updateRole/",views.updateMemberRole, name="updateRole"),
     path("removeMember/",views.removeMember,name="removeMember"),
+    path("sendInvitation/", views.sendInvitation),
+    path("getInvitations/<int:orgId>/", views.getInvitations),
+    path("acceptInvitation/<uuid:token>/", views.acceptInvitation),
+    path("getInvitations/<str:orgId>/", views.getInvitations, name="get_invitations"),
+
 ]
 
 

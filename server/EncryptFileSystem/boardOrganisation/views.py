@@ -3,7 +3,18 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from user.models import Users
-from .models import OrganisationModel, memberDetailModel
+from .models import Invitation, OrganisationModel, memberDetailModel
+
+
+from django.core.mail import send_mail
+from django.conf import settings
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+
+from .serializers import InvitationSerializer
+from django.contrib.auth.models import User
+
 
 @csrf_exempt
 def addOrganisation(request):
@@ -301,3 +312,126 @@ def removeMember(request):
 
     member.delete()
     return JsonResponse({"message": "Member removed"}, status=200)
+
+@csrf_exempt
+def sendInvitation(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    token = request.COOKIES.get("session")
+    if not token:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    sender = Users.objects.filter(token=token).first()
+    if not sender:
+        return JsonResponse({"error": "User not found"}, status=404)
+
+    email = data.get("email")
+    orgId = data.get("orgId")
+    role = data.get("role", "member")
+
+    if not email or not orgId:
+        return JsonResponse({"error": "email or orgId missing"}, status=400)
+
+    organisation = OrganisationModel.objects.filter(organisationId=orgId).first()
+    if not organisation:
+        return JsonResponse({"error": "Organisation not found"}, status=404)
+
+    adminCheck = memberDetailModel.objects.filter(
+        organisation=organisation, memberInfo=sender, role="admin"
+    ).exists()
+
+    if not adminCheck:
+        return JsonResponse({"error": "No admin permission"}, status=403)
+
+    # 🔥 Auto resend: remove any existing pending invite
+    Invitation.objects.filter(email=email, organisation=organisation, accepted=False).delete()
+
+    # Create a fresh invitation
+    invite = Invitation.objects.create(
+        email=email, organisation=organisation, role=role
+    )
+
+    invite_link = f"http://localhost:3000/accept-invite?token={invite.token}"
+
+    try:
+        send_mail(
+            subject=f"You are invited to join {organisation.organisationName}",
+            message=f"Click to accept: {invite_link}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False
+        )
+    except Exception as e:
+        print("Email Error:", e)
+        return JsonResponse({"error": "Failed to send email"}, status=500)
+
+    return JsonResponse({"message": "Invitation email sent successfully!"}, status=200)
+
+
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def getInvitations(request, orgId):
+    invites = Invitation.objects.filter(organisation_id=orgId, accepted=False)
+    serializer = InvitationSerializer(invites, many=True)
+    return Response({"invitations": serializer.data})
+@csrf_exempt
+def acceptInvitation(request, token):
+    invite = Invitation.objects.filter(token=token, accepted=False).first()
+    if not invite:
+        return JsonResponse({"error": "Invalid or expired token"}, status=400)
+
+    user = Users.objects.filter(email=invite.email).first()
+
+    if user:
+        # Existing User → Directly add to organisation
+        memberDetailModel.objects.create(
+            organisation=invite.organisation,
+            memberName=user.username,
+            memberInfo=user,
+            role=invite.role
+        )
+        invite.accepted = True
+        invite.save()
+        return JsonResponse({"status": "existing-user"}, status=200)
+    else:
+        # New User → Redirect frontend to signup
+        return JsonResponse({"status": "new-user", "email": invite.email}, status=200)
+
+    
+
+@csrf_exempt
+def getInvitations(request, orgId):
+    token = request.COOKIES.get("session")
+    if not token:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    user = Users.objects.filter(token=token).first()
+    if not user:
+        return JsonResponse({"error": "User not found"}, status=404)
+
+    organisation = OrganisationModel.objects.filter(organisationId=orgId).first()
+    if not organisation:
+        return JsonResponse({"error": "Organisation not found"}, status=404)
+
+    invites = Invitation.objects.filter(organisation=organisation, accepted=False)
+
+    return JsonResponse({
+        "invitations": [
+            {
+                "email": i.email,
+                "role": i.role,
+                "created_at": i.created_at.strftime("%d/%m/%Y"),
+                "token": str(i.token),
+            } for i in invites
+        ]
+    }, status=200)
+
+

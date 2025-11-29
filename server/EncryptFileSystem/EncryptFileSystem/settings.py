@@ -49,7 +49,8 @@ INSTALLED_APPS = [
     "corsheaders",
     'user',
     'board',
-    'boardOrganisation'
+    'boardOrganisation',
+    'rest_framework'
 
 ]
 MIDDLEWARE = [
@@ -180,3 +181,13 @@ SESSION_COOKIE_SAMESITE = "None"
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 days
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+DEFAULT_FROM_EMAIL = "vj2754108@gmail.com"
+EMAIL_HOST_USER = "vj2754108@gmail.com"
+EMAIL_HOST_PASSWORD = "wxcpbtjkqiurfncn"
