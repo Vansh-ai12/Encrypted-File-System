@@ -129,13 +129,18 @@ def changePassword(request):
 @csrf_exempt
 def check_session(request):
     token = request.COOKIES.get("session")
-
     user = Users.objects.filter(token=token).first()
 
-    if user:
-        return JsonResponse({"loggedIn": True, "username": user.username})
-    else:
+    if not user:
         return JsonResponse({"loggedIn": False})
+
+    return JsonResponse({
+        "loggedIn": True,
+        "username": user.username,
+        "activeOrgId": user.activeOrganisation.organisationId 
+                        if user.activeOrganisation else None
+    })
+
 
 
 

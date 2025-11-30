@@ -14,10 +14,10 @@ class OrganisationModel(models.Model):
     organisationName = models.CharField(max_length=150)
     organisationId = models.CharField(max_length=100, unique=True, default=generate_file_id)
     slug = models.SlugField(unique=True)
-
-    role = models.CharField(max_length=10,default="admin")
+    
+    
     createdAt = models.DateTimeField(auto_now_add=True)
-    user = models.ForeignKey(Users, on_delete=models.CASCADE)
+   
     imgUrl = models.ImageField(upload_to='organisation_logos/', null=True, blank=True)
 
 

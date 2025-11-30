@@ -54,12 +54,26 @@ export const OrganisationSwitcher = () => {
     return () => window.removeEventListener("org-changed", updateActive);
   }, []);
 
-  const handleSelect = (id) => {
-    localStorage.setItem("activeOrgId", id);
-    setActiveOrgId(id);
-    setOpen(false);
-    window.dispatchEvent(new Event("org-changed"));
-  };
+  const handleSelect = async (id) => {
+  // 🔥 Instant UI Update — user sees switch immediately
+  localStorage.setItem("activeOrgId", id);
+  setActiveOrgId(id);
+  setOpen(false);
+  window.dispatchEvent(new Event("org-changed"));
+
+ 
+  try {
+    await fetch("http://127.0.0.1:8000/boardOrganisation/setActiveOrganisation/", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId: id }),
+    });
+  } catch (err) {
+    console.error("Failed to sync active organisation with backend:", err);
+  }
+};
+
 
   useEffect(() => {
     const handler = (e) =>

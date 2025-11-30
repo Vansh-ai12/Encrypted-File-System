@@ -55,12 +55,33 @@ export const List = () => {
     fetchOrgs();
   }, []);
 
-  // 🚀 When an org is selected
-  const handleSelect = (id) => {
-    localStorage.setItem("activeOrgId", id);
-    setActiveOrgId(id);
-    window.dispatchEvent(new Event("org-changed"));
-  };
+
+const handleSelect = async (id) => {
+  try {
+    const res = await fetch(
+      "http://127.0.0.1:8000/boardOrganisation/setActiveOrganisation/",
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId: id }),
+      }
+    );
+
+    if (!res.ok) {
+      console.error("Failed to sync active organisation with backend");
+      // We still allow UI update to keep feel smooth
+    }
+  } catch (error) {
+    console.error("Error setting active organisation:", error);
+  }
+
+  // Always update UI regardless of backend status
+  localStorage.setItem("activeOrgId", id);
+  setActiveOrgId(id);
+  window.dispatchEvent(new Event("org-changed"));
+};
+
 
   if (loading) {
     return <p className="text-gray-400 text-sm">Loading organisations...</p>;

@@ -8,3 +8,11 @@ class Users(models.Model):
     email = models.EmailField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     token = models.CharField(max_length=255, blank=True, null=True)
+    activeOrganisation = models.ForeignKey(
+    'boardOrganisation.OrganisationModel',
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="active_users"
+)
+

@@ -1,16 +1,11 @@
 "use client";
 
-// Email Invitation is now handled via /sendInvitation/ API
-// This component assumes invitations are stored separately and exposed via:
-//  - GET  /boardOrganisation/getInvitations/<orgId>/
-//  - POST /boardOrganisation/sendInvitation/
-
 import { useEffect, useState } from "react";
 import { Users, Settings as SettingsIcon, Plus } from "lucide-react";
 
 export default function ManageOrganisations({ orgId, onClose }) {
-  const [activeSection, setActiveSection] = useState("members"); // "members" | "settings"
-  const [activeSubTab, setActiveSubTab] = useState("members");  // "members" | "invitations"
+  const [activeSection, setActiveSection] = useState("members");
+  const [activeSubTab, setActiveSubTab] = useState("members");
 
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
@@ -25,11 +20,14 @@ export default function ManageOrganisations({ orgId, onClose }) {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState("");
 
+  const [confirmName, setConfirmName] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
   const loggedInEmail =
     typeof window !== "undefined" ? localStorage.getItem("email") : null;
 
-  // ---------- Fetch helpers ----------
-
+  // Fetch organisation details
   const fetchOrgInfo = async () => {
     try {
       const res = await fetch(
@@ -37,13 +35,14 @@ export default function ManageOrganisations({ orgId, onClose }) {
         { credentials: "include" }
       );
       const data = await res.json();
-      const match = data.organisations?.find((o) => o.organisationId === orgId);
+      const match = data.organisations?.find((o) => o.organisationId == orgId);
       if (match) setOrgInfo(match);
     } catch (err) {
-      console.error("Failed to fetch organisations", err);
+      console.error(err);
     }
   };
 
+  // Fetch Members
   const fetchMembers = async () => {
     try {
       setLoadingMembers(true);
@@ -54,12 +53,13 @@ export default function ManageOrganisations({ orgId, onClose }) {
       const data = await res.json();
       setMembers(data.members || []);
     } catch (err) {
-      console.error("Failed to fetch members", err);
+      console.error(err);
     } finally {
       setLoadingMembers(false);
     }
   };
 
+  // Fetch Invitations
   const fetchInvitations = async () => {
     try {
       setLoadingInvites(true);
@@ -70,7 +70,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
       const data = await res.json();
       setInvitations(data.invitations || []);
     } catch (err) {
-      console.error("Failed to fetch invitations", err);
+      console.error(err);
     } finally {
       setLoadingInvites(false);
     }
@@ -83,8 +83,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
     fetchInvitations();
   }, [orgId]);
 
-  // ---------- Mutations ----------
-
+  // Update Role
   const updateRole = async (email, newRole) => {
     try {
       await fetch(
@@ -98,7 +97,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
       );
       fetchMembers();
     } catch (err) {
-      console.error("Failed to update member role", err);
+      console.error(err);
     }
   };
 
@@ -115,17 +114,17 @@ export default function ManageOrganisations({ orgId, onClose }) {
       );
       fetchMembers();
     } catch (err) {
-      console.error("Failed to remove user", err);
+      console.error(err);
     }
   };
 
-  // Send invite (does NOT directly add member)
+  // Invite Submit
   const handleInvite = async (e) => {
     e.preventDefault();
     setInviteError("");
 
     if (!inviteEmail.trim()) {
-      setInviteError("Enter email to invite");
+      setInviteError("Enter email");
       return;
     }
 
@@ -145,67 +144,82 @@ export default function ManageOrganisations({ orgId, onClose }) {
           }),
         }
       );
-
       const data = await res.json();
-
       if (!res.ok) {
-        setInviteError(data.error || "Failed to send invitation");
+        setInviteError(data.error || "Error sending invite");
       } else {
         setInviteEmail("");
-        // Refresh invitation list, since it should now contain this email
         fetchInvitations();
       }
     } catch (err) {
-      console.error("Failed to send invitation", err);
-      setInviteError("Something went wrong while sending invitation");
+      setInviteError("Something went wrong");
     } finally {
       setInviteLoading(false);
     }
   };
 
-  const orgInitial =
-    orgInfo?.organisationName?.[0]?.toUpperCase() || "?";
+  // Delete Org Handler
+  const handleDeleteOrganisation = async () => {
+    setDeleting(true);
+    setDeleteError("");
+
+    try {
+      const res = await fetch(
+        "http://127.0.0.1:8000/boardOrganisation/deleteOrganisation/",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orgId }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        setDeleteError(data.error || "Failed deleting");
+      } else {
+        const active = localStorage.getItem("activeOrgId");
+        if (active == orgId) {
+          localStorage.removeItem("activeOrgId");
+          window.dispatchEvent(new Event("org-changed"));
+        }
+        onClose();
+      }
+    } catch (err) {
+      setDeleteError("Error deleting");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const orgInitial = orgInfo?.organisationName?.[0]?.toUpperCase() || "?";
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[200]">
       <div className="relative bg-white w-[950px] h-[550px] rounded-2xl shadow-xl flex overflow-hidden">
-        {/* Close Button */}
+
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-lg hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center"
+          className="absolute top-3 right-3 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center"
         >
           ✕
         </button>
 
-        {/* LEFT SIDEBAR */}
+        {/* Sidebar */}
         <div className="w-64 bg-gray-50 border-r border-gray-200">
-          {/* Org Header */}
           <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-gray-200">
-            {/* Avatar — image or gradient fallback */}
-            {orgInfo?.imgUrl ? (
-              <img
-                src={orgInfo.imgUrl}
-                alt="Org Logo"
-                className="w-10 h-10 rounded-lg object-cover shadow-sm"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-500 to-purple-500 text-white font-semibold flex items-center justify-center shadow-sm">
-                {orgInitial}
-              </div>
-            )}
-
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-500 to-purple-500 text-white font-semibold flex items-center justify-center shadow-sm">
+              {orgInitial}
+            </div>
             <div>
-              <p className="text-sm font-medium truncate max-w-[120px]">
-                {orgInfo?.organisationName || "Organisation"}
-              </p>
+              <p className="text-sm font-medium truncate max-w-[120px]">{orgInfo?.organisationName}</p>
               <p className="text-[11px] text-gray-500">Organization</p>
             </div>
           </div>
 
-          {/* Sidebar Nav */}
           <div className="mt-3 space-y-1">
             <button
-              className={`w-full flex items-center gap-2 px-6 py-2 text-sm rounded-md transition ${
+              className={`w-full flex items-center gap-2 px-6 py-2 text-sm rounded-md ${
                 activeSection === "members"
                   ? "bg-white font-medium shadow-sm"
                   : "text-gray-600 hover:bg-gray-100"
@@ -216,7 +230,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
             </button>
 
             <button
-              className={`w-full flex items-center gap-2 px-6 py-2 text-sm rounded-md transition ${
+              className={`w-full flex items-center gap-2 px-6 py-2 text-sm rounded-md ${
                 activeSection === "settings"
                   ? "bg-white font-medium shadow-sm"
                   : "text-gray-600 hover:bg-gray-100"
@@ -230,17 +244,54 @@ export default function ManageOrganisations({ orgId, onClose }) {
 
         {/* RIGHT CONTENT */}
         <div className="flex-1 p-6 flex flex-col overflow-hidden">
-          {/* MEMBERS SECTION */}
+
+          {/* SETTINGS */}
+          {activeSection === "settings" && orgInfo && (
+            <div className="space-y-6 mt-3 w-full max-w-xl">
+              <h1 className="text-lg font-semibold">Danger Zone</h1>
+              <p className="text-xs text-gray-500">
+                This will permanently remove boards, members and invitations.
+              </p>
+
+              <div className="border border-red-300 bg-red-50 p-4 rounded-xl">
+                <h2 className="text-sm font-semibold text-red-600">Delete Organization</h2>
+                <p className="text-xs mt-2 text-gray-700">
+                  Type <b>{orgInfo.organisationName}</b> to confirm.
+                </p>
+
+                <input
+                  type="text"
+                  className="w-full border rounded-lg px-3 py-2 text-xs mt-3"
+                  placeholder="Enter name exactly"
+                  value={confirmName}
+                  onChange={(e) => setConfirmName(e.target.value)}
+                />
+
+                {deleteError && (
+                  <p className="text-xs text-red-500 mt-1">{deleteError}</p>
+                )}
+
+                <button
+                  disabled={confirmName !== orgInfo.organisationName || deleting}
+                  onClick={handleDeleteOrganisation}
+                  className="mt-3 w-full text-xs px-4 py-2 rounded-lg bg-red-500 text-white disabled:opacity-50 hover:bg-red-600"
+                >
+                  {deleting ? "Deleting…" : "Delete Organization"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* MEMBERS UI */}
           {activeSection === "members" && (
             <>
               <h1 className="text-xl font-semibold">Members</h1>
               <p className="text-xs text-gray-500">
-                View and manage organization members and invitations
+                Manage organization members & invites
               </p>
 
-              {/* Tabs + Invite */}
+              {/* Tabs */}
               <div className="mt-5 flex items-center justify-between">
-                {/* Tabs */}
                 <div className="flex gap-8 text-sm">
                   {["members", "invitations"].map((tab) => (
                     <button
@@ -257,15 +308,11 @@ export default function ManageOrganisations({ orgId, onClose }) {
                   ))}
                 </div>
 
-                {/* Invite form (only in Members tab) */}
                 {activeSubTab === "members" && (
-                  <form
-                    onSubmit={handleInvite}
-                    className="flex items-center gap-2"
-                  >
+                  <form onSubmit={handleInvite} className="flex items-center gap-2">
                     <input
                       type="email"
-                      placeholder="Enter email to invite"
+                      placeholder="Enter email"
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
                       className="border rounded-lg px-3 py-1 text-xs w-52"
@@ -278,14 +325,13 @@ export default function ManageOrganisations({ orgId, onClose }) {
                       <option value="member">Member</option>
                       <option value="admin">Admin</option>
                     </select>
-
                     <button
                       type="submit"
                       disabled={inviteLoading}
                       className="bg-black text-white rounded-lg px-3 py-1 text-xs hover:bg-gray-800 disabled:opacity-50 flex items-center gap-1"
                     >
                       <Plus className="w-3 h-3" />
-                      {inviteLoading ? "Sending…" : "Send invite"}
+                      {inviteLoading ? "Sending…" : "Invite"}
                     </button>
                   </form>
                 )}
@@ -295,20 +341,16 @@ export default function ManageOrganisations({ orgId, onClose }) {
                 <p className="text-[11px] text-red-500 mt-1">{inviteError}</p>
               )}
 
-              {/* CONTENT AREA */}
+              {/* Member list */}
               <div className="mt-4 flex-1 overflow-y-auto">
-                {/* MEMBERS TAB CONTENT */}
                 {activeSubTab === "members" && (
                   <>
                     {loadingMembers ? (
-                      <p className="text-gray-500 text-sm">Loading members…</p>
+                      <p className="text-gray-500 text-sm">Loading...</p>
                     ) : members.length === 0 ? (
-                      <p className="text-gray-500 text-sm">
-                        No members found
-                      </p>
+                      <p className="text-gray-500 text-sm">No members</p>
                     ) : (
                       <div className="rounded-lg overflow-hidden border border-gray-100 bg-white">
-                        {/* Header */}
                         <div className="grid grid-cols-4 text-xs font-medium text-gray-500 bg-gray-50 border-b px-6 py-2">
                           <span>User</span>
                           <span>Joined</span>
@@ -322,7 +364,6 @@ export default function ManageOrganisations({ orgId, onClose }) {
                               key={i}
                               className="grid grid-cols-4 items-center px-6 py-3 hover:bg-gray-50 transition"
                             >
-                              {/* User */}
                               <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-pink-500 to-purple-500 text-white font-semibold flex items-center justify-center">
                                   {m.username?.[0]?.toUpperCase()}
@@ -336,30 +377,21 @@ export default function ManageOrganisations({ orgId, onClose }) {
                                       </span>
                                     )}
                                   </span>
-                                  <span className="text-xs text-gray-500">
-                                    {m.email}
-                                  </span>
+                                  <span className="text-xs text-gray-500">{m.email}</span>
                                 </div>
                               </div>
 
-                              {/* Joined */}
-                              <span className="text-xs text-gray-600">
-                                {m.joined}
-                              </span>
+                              <span className="text-xs text-gray-600">{m.joined}</span>
 
-                              {/* Role */}
                               <select
                                 className="text-xs border rounded-md px-2 py-1 bg-white"
                                 value={m.role}
-                                onChange={(e) =>
-                                  updateRole(m.email, e.target.value)
-                                }
+                                onChange={(e) => updateRole(m.email, e.target.value)}
                               >
                                 <option value="admin">Admin</option>
                                 <option value="member">Member</option>
                               </select>
 
-                              {/* Remove */}
                               <button
                                 onClick={() => removeUser(m.email)}
                                 className="text-xs text-red-500 hover:text-red-700 ml-auto opacity-70 hover:opacity-100 transition"
@@ -374,17 +406,13 @@ export default function ManageOrganisations({ orgId, onClose }) {
                   </>
                 )}
 
-                {/* INVITATIONS TAB CONTENT */}
+                {/* Invitations */}
                 {activeSubTab === "invitations" && (
                   <>
                     {loadingInvites ? (
-                      <p className="text-gray-500 text-sm">
-                        Loading invitations…
-                      </p>
+                      <p className="text-gray-500 text-sm">Loading...</p>
                     ) : invitations.length === 0 ? (
-                      <p className="text-gray-500 text-sm">
-                        No pending invitations
-                      </p>
+                      <p className="text-gray-500 text-sm">No pending invites</p>
                     ) : (
                       <div className="rounded-lg overflow-hidden border border-gray-100 bg-white">
                         <div className="grid grid-cols-3 text-xs font-medium text-gray-500 bg-gray-50 border-b px-6 py-2">
@@ -399,12 +427,8 @@ export default function ManageOrganisations({ orgId, onClose }) {
                               key={i}
                               className="grid grid-cols-3 items-center px-6 py-3 hover:bg-gray-50 transition text-sm"
                             >
-                              <span className="text-gray-900">
-                                {inv.email}
-                              </span>
-                              <span className="text-xs text-gray-600">
-                                {inv.role}
-                              </span>
+                              <span className="text-gray-900">{inv.email}</span>
+                              <span className="text-xs text-gray-600">{inv.role}</span>
                               <span className="text-xs text-right text-blue-600">
                                 {inv.status || "Pending"}
                               </span>
@@ -417,14 +441,6 @@ export default function ManageOrganisations({ orgId, onClose }) {
                 )}
               </div>
             </>
-          )}
-
-          {/* SETTINGS SECTION (placeholder) */}
-          {activeSection === "settings" && (
-            <div className="mt-6">
-              <h1 className="text-lg font-semibold">Settings</h1>
-              <p className="text-xs text-gray-500">Coming soon…</p>
-            </div>
           )}
         </div>
       </div>

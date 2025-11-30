@@ -13,7 +13,8 @@ urlpatterns = [
     path("getInvitations/<int:orgId>/", views.getInvitations),
     path("acceptInvitation/<uuid:token>/", views.acceptInvitation),
     path("getInvitations/<str:orgId>/", views.getInvitations, name="get_invitations"),
-
+    path("deleteOrganisation/",views.deleteOrganisation,name="deleteOrganisation"),
+    path("setActiveOrganisation/", views.setActiveOrganisation, name="set-active-organisation"),
 ]
 
 
