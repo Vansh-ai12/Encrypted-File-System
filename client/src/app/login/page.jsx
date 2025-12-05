@@ -13,37 +13,48 @@ export default function LoginPage() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    setSubmitted(true);
-    setErrorMsg("");
+  setSubmitted(true);
+  setErrorMsg("");
 
-    if (!email || !password) return;
+  if (!email || !password) return;
+  setLoading(true);
 
-    setLoading(true);
+  try {
+    const res = await fetch("http://127.0.0.1:8000/user/login/", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-    try {
-      const res = await fetch("http://127.0.0.1:8000/user/login/", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setErrorMsg(data.error || "Invalid login");
-        setLoading(false);
-        return;
-      }
-
-      router.push("/dashboard?loginSuccess=true");
-    } catch (error) {
-      console.log(error);
-      setErrorMsg("Server error");
+    const data = await res.json();
+    if (!res.ok) {
+      setErrorMsg(data.error || "Invalid login");
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
-  };
+    // ⭐️ fetch session to get activeOrg info
+    const sessionRes = await fetch("http://127.0.0.1:8000/user/check/", {
+      method: "GET",
+      credentials: "include",
+    });
+    const sessionData = await sessionRes.json();
+
+    if (sessionData.activeOrgId) {
+      localStorage.setItem("activeOrgId", sessionData.activeOrgId);
+      window.dispatchEvent(new Event("org-changed"));
+    }
+
+    router.replace("/dashboard");
+  } catch (err) {
+    console.log(err);
+    setErrorMsg("Server error");
+  }
+
+  setLoading(false);
+};
+
 
   return (
     <div className="wrapper">

@@ -272,9 +272,7 @@ export default function ManageOrganisations({
           </div>
         ) : (
           <>
-            {/* Members Tab UI (unchanged from your version) */}
-            {/* I kept everything intact exactly as you designed */}
-            {/* --- full members + invitations code continues below exactly same --- */}
+            
 
             <h1 className="text-xl font-semibold">Members</h1>
             <p className="text-xs text-gray-500 mb-4">

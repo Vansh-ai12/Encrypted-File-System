@@ -39,6 +39,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -50,13 +51,29 @@ INSTALLED_APPS = [
     'user',
     'board',
     'boardOrganisation',
-    'rest_framework'
+    'rest_framework',
+    'realtime',
+
 
 ]
+
+
+ASGI_APPLICATION = 'EncryptFileSystem.asgi.application'
+
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
+
+
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  
+    "EncryptFileSystem.middleware.cors_credentials.CredentialsCorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",  
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -65,6 +82,9 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'EncryptFileSystem.urls'
+
+
+
 
 TEMPLATES = [
     {
@@ -129,7 +149,21 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [
+    BASE_DIR / "EncryptFileSystem/static",
+]
+STATIC_ROOT = BASE_DIR / "static"
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "sesame.backends.ModelBackend",
+]
+
+
+SESAME_MAX_AGE = 30
+
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -137,18 +171,15 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# CORS 🤝
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
-
-SESSION_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SECURE = True
-
-CSRF_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SECURE = True
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
@@ -161,26 +192,22 @@ CORS_ALLOW_HEADERS = [
     "authorization",
 ]
 
-SESSION_ENGINE = "django.contrib.sessions.backends.db"
-
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-
-CORS_ALLOW_ALL_HEADERS = True
 CORS_ALLOW_METHODS = [
-    "GET",
-    "POST",
-    "PUT",
-    "PATCH",
-    "DELETE",
-    "OPTIONS",
+    "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS",
 ]
 
 
-SESSION_COOKIE_SECURE = False
-SESSION_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 days
+# Cookies 🍪
+SESSION_COOKIE_SAMESITE = "Lax"  # IMPORTANT for Django Admin
+CSRF_COOKIE_SAMESITE = "Lax"
+
+SESSION_COOKIE_SECURE = False  # because using http://localhost
+CSRF_COOKIE_SECURE = False
+
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 days
+
 
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

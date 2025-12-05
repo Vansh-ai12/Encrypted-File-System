@@ -13,6 +13,5 @@ class Users(models.Model):
     on_delete=models.SET_NULL,
     null=True,
     blank=True,
-    related_name="active_users"
-)
+    related_name="active_users")
 

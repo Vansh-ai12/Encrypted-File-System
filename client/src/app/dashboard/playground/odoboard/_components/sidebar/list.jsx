@@ -90,7 +90,7 @@ const handleSelect = async (id) => {
   if (orgs.length === 0) {
     return (
       <p className="text-gray-500 text-sm">
-        No organisations yet. Create one to continue!
+        .
       </p>
     );
   }

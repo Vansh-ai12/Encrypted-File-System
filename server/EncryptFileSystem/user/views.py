@@ -34,13 +34,23 @@ def signUp(request):
     path="/",
     httponly=True,
     secure=True,  
-    samesite="None",
-    max_age=60*60*24*7  
+    samesite="None", 
+    max_age=60 * 60 * 24 * 7,
+    domain="127.0.0.1",
 )
+
+
 
     return response
 @csrf_exempt
 def login(request):
+    if request.method == "OPTIONS":
+        response = JsonResponse({"message": "Preflight OK"}, status=200)
+        response["Access-Control-Allow-Origin"] = "http://localhost:3000"
+        response["Access-Control-Allow-Credentials"] = "true"
+        response["Access-Control-Allow-Headers"] = "Content-Type"
+        response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return response
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -77,14 +87,15 @@ def login(request):
 
     response = JsonResponse({"message": "Login successful"}, status=200)
     response.set_cookie(
-        key="session",
-        value=token,
-        path="/",
-        httponly=True,
-        secure=True,
-        samesite="None",
-        max_age=60 * 60 * 24 * 7
-    )
+    key="session",
+    value=token,
+    path="/",
+    httponly=True,
+    secure=True,  
+    samesite="None", 
+    max_age=60 * 60 * 24 * 7,
+    domain="127.0.0.1",
+)
 
     return response
 

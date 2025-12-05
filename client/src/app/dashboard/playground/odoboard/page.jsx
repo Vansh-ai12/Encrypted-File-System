@@ -6,17 +6,40 @@ import { EmptyOrg } from "./_components/empty-org";
 import CreateOrganization from "./_components/create-organisation";
 import { useSearchParams } from "next/navigation";
 import { BoardList } from "./_components/board-list";
-export default function OdoBoardPage(props) {
+
+export default function OdoBoardPage() {
   const searchParams = useSearchParams();
   const search = searchParams.get("search");
   const favorites = searchParams.get("favorites");
+
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [activeOrgId, setActiveOrgId] = useState(
-    typeof window !== "undefined" ? localStorage.getItem("activeOrgId") : null
-  );
+  const [activeOrgId, setActiveOrgId] = useState(null);
   const [activeOrgName, setActiveOrgName] = useState("");
 
-  // 🟣 Update org data whenever activeOrg changes
+  useEffect(() => {
+    const checkSessionAndOrg = async () => {
+      const res = await fetch("http://127.0.0.1:8000/user/check/", {
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (data.loggedIn) {
+        if (data.activeOrgId) {
+          localStorage.setItem("activeOrgId", data.activeOrgId);
+          setActiveOrgId(data.activeOrgId);
+        } else {
+          localStorage.removeItem("activeOrgId");
+          setActiveOrgId(null);
+        }
+
+        window.dispatchEvent(new Event("org-changed"));
+      }
+    };
+
+    checkSessionAndOrg();
+  }, []);
+
+  // 🟣 Fetch active org name only when session is confirmed
   useEffect(() => {
     if (!activeOrgId) {
       setActiveOrgName("");
@@ -32,22 +55,27 @@ export default function OdoBoardPage(props) {
           (o) => o.organisationId == activeOrgId
         );
         if (found) setActiveOrgName(found.organisationName);
-      });
+      })
+      .catch(() => {});
   }, [activeOrgId]);
 
-  // 🔁 Listen for activeOrg switch
+  // 🔁 Update when org switched in UI
   useEffect(() => {
     const updateActiveOrg = () =>
       setActiveOrgId(localStorage.getItem("activeOrgId"));
+
     window.addEventListener("org-changed", updateActiveOrg);
-    return () => window.removeEventListener("org-changed", updateActiveOrg);
+    return () =>
+      window.removeEventListener("org-changed", updateActiveOrg);
   }, []);
 
-  // 🎯 CTA Listener (from EmptyOrg button)
+  // 🎯 Support CTA to create organization
   useEffect(() => {
     const openModal = () => setShowCreateModal(true);
+
     window.addEventListener("open-create-org-modal", openModal);
-    return () => window.removeEventListener("open-create-org-modal", openModal);
+    return () =>
+      window.removeEventListener("open-create-org-modal", openModal);
   }, []);
 
   return (
@@ -55,19 +83,17 @@ export default function OdoBoardPage(props) {
       <OdoLoader />
 
       <div className="flex-1 h-[calc(100%-80px)] p-6">
-         
-        {/* Show UI based on active organisation status */}
+
         {!activeOrgId ? (
           <EmptyOrg />
         ) : (
           <BoardList
             orgId={activeOrgId}
-            search= {search}
-            favorites = {favorites}
+            search={search}
+            favorites={favorites}
           />
         )}
 
-       
         {showCreateModal && (
           <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center">
             <div className="relative">

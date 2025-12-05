@@ -12,8 +12,8 @@ export function InviteButton({ orgId }) {
         <Button
           className="bg-gradient-to-r from-purple-600 to-fuchsia-600 
                hover:opacity-90 active:scale-95
-               text-white font-medium px-4 py-2 rounded-lg 
-               shadow-md transition-all duration-200 flex items-center gap-2"
+               t ext-white font-medium px-4 py-2 rounded-lg 
+               shadow-md transition-all duration-200 flex items-center gap-2 text-white"
         >
           <Plus className="h-4 w-4" />
           Invite members

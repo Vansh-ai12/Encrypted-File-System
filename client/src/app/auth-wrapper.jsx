@@ -1,4 +1,3 @@
-// src/app/auth-wrapper.jsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,21 +16,33 @@ export default function AuthWrapper({ children }) {
         });
 
         const data = await res.json();
-        console.log("Session Check:", data);
 
-        if (data.loggedIn) {
-          // 🔥 Already logged in → Redirect to dashboard
-          if (window.location.pathname === "/") {
-            router.replace("/dashboard");
-          }
-        } else {
-          // ❌ Not logged in → Redirect to home/login
+        // ❌ If NOT logged in → redirect to login
+        if (!data.loggedIn) {
           if (window.location.pathname !== "/") {
             router.replace("/");
           }
+          setLoading(false);
+          return;
         }
-      } catch (err) {
-        console.error("Session check failed:", err);
+
+        // ⭐ Save activeOrgId if exists
+        if (data.activeOrgId) {
+          localStorage.setItem("activeOrgId", data.activeOrgId);
+          window.dispatchEvent(new Event("org-changed"));
+        }
+
+        // 🔥 User logged in but on home → go dashboard
+        if (window.location.pathname === "/") {
+          router.replace("/dashboard");
+        }
+
+        // 🟡 Logged in but NO org → stay on dashboard, don't redirect elsewhere
+        if (!data.activeOrgId && window.location.pathname !== "/dashboard") {
+          router.replace("/dashboard");
+        }
+
+      } catch {
         router.replace("/");
       }
 
@@ -44,11 +55,10 @@ export default function AuthWrapper({ children }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen text-gray-700">
-        ...
+        Loading...
       </div>
     );
   }
 
   return <>{children}</>;
 }
-
