@@ -69,17 +69,20 @@ CHANNEL_LAYERS = {
 
 
 MIDDLEWARE = [
-    "EncryptFileSystem.middleware.cors_credentials.CredentialsCorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+
     "corsheaders.middleware.CorsMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",  
+
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
 
 ROOT_URLCONF = 'EncryptFileSystem.urls'
 
@@ -161,7 +164,23 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/0",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+
+
 SESAME_MAX_AGE = 30
+
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+
 
 
 
@@ -178,12 +197,10 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
 ]
 
 CORS_ALLOW_HEADERS = [
@@ -198,9 +215,9 @@ CORS_ALLOW_METHODS = [
 
 
 # Cookies 🍪
-SESSION_COOKIE_SAMESITE = "Lax"  # IMPORTANT for Django Admin
+SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
-
+SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = False  # because using http://localhost
 CSRF_COOKIE_SECURE = False
 

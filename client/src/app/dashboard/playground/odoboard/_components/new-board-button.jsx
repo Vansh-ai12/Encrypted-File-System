@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
+import getCookie from "@/hooks/GetCookie";
 export const NewBoardButton = () => {
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -26,10 +26,12 @@ export const NewBoardButton = () => {
     }
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/board/createBoard/", {
+      const res = await fetch("http://localhost:8000/board/createBoard/", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" ,
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
         body: JSON.stringify({
           title: "Untitled Board",
           organisationId: activeOrgId,

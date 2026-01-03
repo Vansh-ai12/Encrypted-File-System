@@ -7,55 +7,50 @@ export default function AuthWrapper({ children }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
+  const path =
+    typeof window !== "undefined" ? window.location.pathname : "";
+  const isInvitePage = path.startsWith("/invite/");
+
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/user/check/", {
-          method: "GET",
+        const res = await fetch("http://localhost:8000/user/check/", {
           credentials: "include",
         });
 
         const data = await res.json();
 
-        // ❌ If NOT logged in → redirect to login
-        if (!data.loggedIn) {
-          if (window.location.pathname !== "/") {
-            router.replace("/");
-          }
+        if (!data.loggedIn && !isInvitePage) {
           setLoading(false);
+          router.replace("/");
           return;
         }
 
-        // ⭐ Save activeOrgId if exists
         if (data.activeOrgId) {
           localStorage.setItem("activeOrgId", data.activeOrgId);
           window.dispatchEvent(new Event("org-changed"));
         }
 
-        // 🔥 User logged in but on home → go dashboard
-        if (window.location.pathname === "/") {
+        if (path === "/" && data.loggedIn) {
+          setLoading(false);
           router.replace("/dashboard");
+          return;
         }
 
-        // 🟡 Logged in but NO org → stay on dashboard, don't redirect elsewhere
-        if (!data.activeOrgId && window.location.pathname !== "/dashboard") {
-          router.replace("/dashboard");
-        }
-
+        setLoading(false);
       } catch {
-        router.replace("/");
+        setLoading(false);
+        if (!isInvitePage) router.replace("/");
       }
-
-      setLoading(false);
     };
 
     checkSession();
-  }, [router]);
+  }, [router, path, isInvitePage]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen text-gray-700">
-        Loading...
+      <div className="flex items-center justify-center h-screen">
+        Loading…
       </div>
     );
   }

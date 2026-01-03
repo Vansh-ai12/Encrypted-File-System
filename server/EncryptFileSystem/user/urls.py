@@ -8,5 +8,5 @@ urlpatterns = [
     path('login/',views.login, name='login'),
     path('logout/',views.logout, name='logout'),
     path("check/", views.check_session,name="check_session"),
-    
+    path("csrf/",views.csrf_bootstrap,name="csrf_bootstrap"),
 ]

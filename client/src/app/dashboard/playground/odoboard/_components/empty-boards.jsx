@@ -26,7 +26,7 @@ export const NoBoards = () => {
         organisationId: activeOrgId.toString().trim(), // 🔥 ensure proper format
       };
 
-      const response = await fetch("http://127.0.0.1:8000/board/createBoard/", {
+      const response = await fetch("http://localhost:8000/board/createBoard/", {
         method: "POST",
         credentials: "include",
         headers: {

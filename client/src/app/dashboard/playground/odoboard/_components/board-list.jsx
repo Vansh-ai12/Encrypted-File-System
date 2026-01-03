@@ -8,7 +8,7 @@ import { NewBoardButton } from "./new-board-button";
 import { Action } from "./action";
 import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
-
+import getCookie from "@/hooks/GetCookie";
 const formatDate = (dateString) => {
   const date = new Date(dateString);
   return date.toLocaleDateString(undefined, {
@@ -49,7 +49,7 @@ export const BoardList = ({ search, favorites }) => {
     try {
       setLoading(true);
       const res = await fetch(
-        `http://127.0.0.1:8000/board/getBoards/?orgId=${activeOrgId}`,
+        `http://localhost:8000/board/getBoards/?orgId=${activeOrgId}`,
         { credentials: "include" }
       );
       const json = await res.json();
@@ -97,10 +97,12 @@ export const BoardList = ({ search, favorites }) => {
     setBoards(updated);
 
     try {
-      await fetch("http://127.0.0.1:8000/board/toggleFavorite/", {
-        method: "PUT",
+      await fetch("http://localhost:8000/board/toggleFavorite/", {
+        method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+         },
         body: JSON.stringify({ boardId, isFavorite: !currentFav }),
       });
     } catch (err) {
@@ -176,7 +178,7 @@ export const BoardList = ({ search, favorites }) => {
 
               <div className="relative w-full h-[150px] rounded-t-xl overflow-hidden">
                 <img
-                  src={`http://127.0.0.1:8000${board.imageUrl}`}
+                  src={`http://localhost:8000${board.imageUrl}`}
                   className="w-full h-full object-cover object-center transition duration-300
              group-hover:brightness-95 group-hover:scale-[1.01]"
                   alt={board.title}

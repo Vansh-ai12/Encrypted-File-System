@@ -1,5 +1,6 @@
 import json
 import secrets
+from urllib import response
 from django.http import JsonResponse
 from django.shortcuts import render
 
@@ -12,36 +13,66 @@ from http import cookies
 
 @csrf_exempt
 def signUp(request):
+    
+    if request.method == "OPTIONS":
+        response = JsonResponse({"message": "Preflight OK"}, status=200)
+        response["Access-Control-Allow-Origin"] = "http://localhost:3000"
+        response["Access-Control-Allow-Credentials"] = "true"
+        response["Access-Control-Allow-Headers"] = "Content-Type"
+        response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return response
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
     salt = "Encrypt@12345#"
-    data  = json.loads(request.body)
+
+    try:
+        data = json.loads(request.body)
+    except:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
     username = data.get("username")
     password = data.get("password")
     email = data.get("email")
-    token =  secrets.token_hex(32)
+
     if not username or not password or not email:
         return JsonResponse({"error": "Missing parameters"}, status=400)
 
+    if Users.objects.filter(email=email).exists():
+        return JsonResponse(
+            {"error": "Email already registered"},
+            status=400
+        )
+
     hashed_password = createHash(password, salt)
-    user_obj = Users(username=username, password=hashed_password, email=email,token=token)
+    token = secrets.token_hex(32)
+
+    user_obj = Users(
+        username=username,
+        password=hashed_password,
+        email=email,
+        token=token
+    )
     user_obj.save()
 
-
-    
     response = JsonResponse({"message": "User created successfully"}, status=201)
+    response["Access-Control-Allow-Origin"] = "http://localhost:3000"
+    response["Access-Control-Allow-Credentials"] = "true"
+
     response.set_cookie(
-    key="session",
-    value=token,
-    path="/",
-    httponly=True,
-    secure=True,  
-    samesite="None", 
-    max_age=60 * 60 * 24 * 7,
-    domain="127.0.0.1",
-)
-
-
+        key="session",
+        value=token,
+        path="/",
+        httponly=True,
+        secure=False,
+        samesite="Lax",
+        max_age=60 * 60 * 24 * 7,
+    )
 
     return response
+
+
 @csrf_exempt
 def login(request):
     if request.method == "OPTIONS":
@@ -91,10 +122,10 @@ def login(request):
     value=token,
     path="/",
     httponly=True,
-    secure=True,  
-    samesite="None", 
+    secure=False,  
+    samesite="Lax", 
     max_age=60 * 60 * 24 * 7,
-    domain="127.0.0.1",
+    
 )
 
     return response
@@ -148,14 +179,16 @@ def check_session(request):
     return JsonResponse({
         "loggedIn": True,
         "username": user.username,
-        "activeOrgId": user.activeOrganisation.organisationId 
-                        if user.activeOrganisation else None
+        "token": user.token,   # ✅ ADD THIS
+        "activeOrgId": (
+            user.activeOrganisation.organisationId
+            if user.activeOrganisation else None
+        )
     })
 
 
+from django.views.decorators.csrf import ensure_csrf_cookie
 
-
-
-
-
-
+@ensure_csrf_cookie
+def csrf_bootstrap(request):
+    return JsonResponse({"detail": "CSRF cookie set"})

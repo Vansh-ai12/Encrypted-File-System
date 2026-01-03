@@ -42,7 +42,7 @@ export default function CreateOrganization() {
       if (previewFile) formData.append("imgUrl", previewFile);
 
       const res = await fetch(
-        "http://127.0.0.1:8000/boardOrganisation/addOrganisation/",
+        "http://localhost:8000/boardOrganisation/addOrganisation/",
         { method: "POST", credentials: "include", body: formData }
       );
 

@@ -37,7 +37,7 @@ export const OrganisationSwitcher = () => {
   const activeOrg = orgs.find(o => o.organisationId == activeOrgId);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/boardOrganisation/getOrganisations/", {
+    fetch("http://localhost:8000/boardOrganisation/getOrganisations/", {
       credentials: "include",
     })
       .then(res => res.json())
@@ -63,7 +63,7 @@ export const OrganisationSwitcher = () => {
 
  
   try {
-    await fetch("http://127.0.0.1:8000/boardOrganisation/setActiveOrganisation/", {
+    await fetch("http://localhost:8000/boardOrganisation/setActiveOrganisation/", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -100,7 +100,7 @@ export const OrganisationSwitcher = () => {
           <div className="flex items-center gap-2 min-h-[32px]">
             {activeOrg?.imgUrl ? (
               <Image
-                src={`http://127.0.0.1:8000${activeOrg.imgUrl}`}
+                src={`http://localhost:8000${activeOrg.imgUrl}`}
                 width={26}
                 height={26}
                 className="rounded-md object-cover"

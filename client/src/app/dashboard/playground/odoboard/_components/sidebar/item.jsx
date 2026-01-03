@@ -43,7 +43,7 @@ export const Item = ({ name, imageUrl, isActive, onClick }) => {
       >
         {imageUrl ? (
           <Image
-            src={`http://127.0.0.1:8000${imageUrl}`}
+            src={`http://localhost:8000${imageUrl}`}
             alt={name}
             width={40}
             height={40}

@@ -1,36 +1,360 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { CursorsPresence } from "./cursors-presence";
 import { Info } from "./info";
 import { Participants } from "./participants";
 import { Toolbar } from "./toolbar";
-import { useEffect } from "react";
-import { useParams } from "next/navigation";
+import {
+  CanvasMode,
+  LayerType,
+  RectangleLayer,
+  EllipseLayer,
+  TextLayer,
+  NoteLayer,
+} from "../../../../../../../types/canvas";
+import { BoardSocketProvider } from "@/hooks/board-socket-context";
+import { TextLayerView } from "./TextLayerView";
+import { NoteLayerView } from "./NoteLayerView";
+
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 2.5;
 
 export const Canvas = () => {
-  const params = useParams();
-  const boardId = params.boardId;
+  const [canvasState, setCanvasState] = useState({
+    mode: CanvasMode.None,
+    layerType: null,
+  });
+
+  const [layers, setLayers] = useState([]);
+
+  const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
+  const cameraRef = useRef({ x: 0, y: 0, zoom: 1 });
+  const contentRef = useRef(null);
+  const zoomTargetRef = useRef(1);
+  const rafRef = useRef(null);
+
+  const updateLayerValue = (id, value) => {
+    const next = layers.map((l) => (l.id === id ? { ...l, value } : l));
+    commitLayers(next);
+  };
 
   useEffect(() => {
-  if (!boardId) return;
+    window.__BOARD_CAMERA__ = cameraRef;
+  }, []);
 
-  const socket = new WebSocket(
-  `ws://127.0.0.1:8000/ws/board/${boardId}/`
-);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
 
-  socket.onopen = () => console.log("🟢 WebSocket Connected");
-  socket.onmessage = (e) => console.log("WS Message:", e.data);
-  socket.onerror = (e) => console.error("WS Error:", e);
-  socket.onclose = () => console.log("🔴 WebSocket Closed");
+    const onMove = (e) => {
+      lastPointerRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+      };
+    };
 
-  return () => socket.close();
-}, [boardId]);
+    el.addEventListener("mousemove", onMove);
+    return () => el.removeEventListener("mousemove", onMove);
+  }, []);
 
+  useEffect(() => {
+    cameraRef.current = camera;
+  }, [camera]);
+
+  const containerRef = useRef(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const move = (e) => {
+      const cam = cameraRef.current;
+      const rect = containerRef.current.getBoundingClientRect();
+
+      const worldX = (e.clientX - rect.left - cam.x) / cam.zoom;
+      const worldY = (e.clientY - rect.top - cam.y) / cam.zoom;
+
+      window.dispatchEvent(
+        new CustomEvent("board-ws-send", {
+          detail: {
+            type: "CURSOR_MOVE",
+            x: worldX,
+            y: worldY,
+          },
+        })
+      );
+    };
+
+    const leave = () => {
+      window.dispatchEvent(
+        new CustomEvent("board-ws-send", {
+          detail: { type: "CURSOR_LEAVE" },
+        })
+      );
+    };
+
+    el.addEventListener("mousemove", move);
+    el.addEventListener("mouseleave", leave);
+
+    return () => {
+      el.removeEventListener("mousemove", move);
+      el.removeEventListener("mouseleave", leave);
+    };
+  }, []);
+
+  /* ================= WS RECEIVE ================= */
+
+  useEffect(() => {
+    const handler = (e) => {
+      const d = e.detail;
+
+      if (d.type === "INIT_STATE") {
+        setLayers(d.layers || []);
+      }
+
+      if (d.type === "LAYERS_REPLACE") {
+        console.log("FROM SERVER", d.layers);
+        setLayers(d.layers);
+      }
+    };
+
+    window.addEventListener("board-ws-message", handler);
+    return () => window.removeEventListener("board-ws-message", handler);
+  }, []);
+
+  /* ================= HISTORY ================= */
+
+  const commitLayers = (next) => {
+    window.dispatchEvent(
+      new CustomEvent("board-ws-send", {
+        detail: {
+          type: "LAYERS_COMMIT",
+          layers: next,
+        },
+      })
+    );
+  };
+
+  const undo = () => {
+    window.dispatchEvent(
+      new CustomEvent("board-ws-send", {
+        detail: { type: "UNDO" },
+      })
+    );
+  };
+
+  const redo = () => {
+    window.dispatchEvent(
+      new CustomEvent("board-ws-send", {
+        detail: { type: "REDO" },
+      })
+    );
+  };
+
+  /* ================= PAN + ZOOM ================= */
+
+  const applyTransform = () => {
+    if (!contentRef.current) return;
+    const { x, y, zoom } = cameraRef.current;
+
+    contentRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${zoom})`;
+  };
+
+  const syncCameraState = () => {
+    setCamera({ ...cameraRef.current });
+  };
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onWheel = (e) => {
+      e.preventDefault();
+
+      const cam = cameraRef.current;
+      const rect = containerRef.current.getBoundingClientRect();
+
+      if (e.ctrlKey || e.metaKey) {
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const zoomFactor = Math.exp(-e.deltaY * 0.0025); // ← smoother
+        const nextZoom = Math.min(
+          MAX_ZOOM,
+          Math.max(MIN_ZOOM, cam.zoom * zoomFactor)
+        );
+
+        const wx = (mouseX - cam.x) / cam.zoom;
+        const wy = (mouseY - cam.y) / cam.zoom;
+
+        cam.zoom = nextZoom;
+        cam.x = mouseX - wx * nextZoom;
+        cam.y = mouseY - wy * nextZoom;
+      } else {
+        // NORMAL PAN
+        cam.x -= e.deltaX;
+        cam.y -= e.deltaY;
+      }
+
+      applyTransform();
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onWheelEnd = () => {
+      setCamera({ ...cameraRef.current });
+      applyTransform();
+    };
+
+    el.addEventListener("wheel", onWheelEnd, { passive: true });
+    return () => el.removeEventListener("wheel", onWheelEnd);
+  }, []);
+
+  /* ================= INSERT ================= */
+
+  const onCanvasPointerDown = (e) => {
+    if (canvasState.mode !== CanvasMode.Inserting) return;
+
+    const cam = cameraRef.current;
+    const rect = containerRef.current.getBoundingClientRect();
+
+    // screen → world (true infinite)
+    const worldX = (e.clientX - rect.left - cam.x) / cam.zoom;
+    const worldY = (e.clientY - rect.top - cam.y) / cam.zoom;
+
+    let layer;
+    switch (canvasState.layerType) {
+      case LayerType.Rectangle:
+        layer = { ...RectangleLayer };
+        break;
+      case LayerType.Ellipse:
+        layer = { ...EllipseLayer };
+        break;
+      case LayerType.Text:
+        layer = { ...TextLayer };
+        break;
+      case LayerType.Note:
+        layer = { ...NoteLayer };
+        break;
+      default:
+        return;
+    }
+
+    layer.id = crypto.randomUUID();
+    layer.x = worldX - layer.width / 2;
+    layer.y = worldY - layer.height / 2;
+
+    commitLayers([...layers, layer]);
+    setCanvasState({ mode: CanvasMode.None, layerType: null });
+  };
+
+  useEffect(() => {
+    applyTransform();
+  }, []);
+
+  /* ================= RENDER ================= */
 
   return (
-    <main className="h-full w-full relative bg-neutral-100">
-      <Info />
-      <Participants />
-      <Toolbar />
-    </main>
+    <BoardSocketProvider>
+      <main
+        ref={containerRef}
+        className="h-full w-full relative bg-neutral-100 overflow-hidden"
+        onPointerDown={onCanvasPointerDown}
+      >
+        <Info />
+        <Participants />
+
+        <Toolbar
+          canvasState={canvasState}
+          setCanvasState={setCanvasState}
+          undo={undo}
+          redo={redo}
+          canUndo={true}
+          canRedo={true}
+        />
+
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            ref={contentRef}
+            className="absolute top-0 left-0"
+            style={{
+              width: 100000,
+              height: 100000,
+              transformOrigin: "0 0",
+              willChange: "transform",
+            }}
+          >
+            <svg
+              className="absolute top-0 left-0"
+              width="100%"
+              height="100%"
+              style={{
+                overflow: "visible",
+                pointerEvents: "none",
+              }}
+            >
+              {layers.map((l) =>
+                l.type === LayerType.Rectangle ? (
+                  <rect
+                    key={l.id}
+                    x={l.x}
+                    y={l.y}
+                    width={l.width}
+                    height={l.height}
+                    stroke="black"
+                    strokeWidth={1 / camera.zoom}
+                    vectorEffect="non-scaling-stroke"
+                    shapeRendering="geometricPrecision"
+                    fill="transparent"
+                    pointerEvents="auto"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                ) : l.type === LayerType.Ellipse ? (
+                  <ellipse
+                    key={l.id}
+                    cx={l.x + l.width / 2}
+                    cy={l.y + l.height / 2}
+                    rx={l.width / 2}
+                    ry={l.height / 2}
+                    stroke="black"
+                    fill="transparent"
+                    strokeWidth={1 / camera.zoom}
+                    vectorEffect="non-scaling-stroke"
+                    shapeRendering="geometricPrecision"
+                    pointerEvents="auto"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                ) : null
+              )}
+            </svg>
+
+            {layers.map((l) =>
+              l.type === LayerType.Text ? (
+                <TextLayerView
+                  key={l.id}
+                  layer={l}
+                  onChange={updateLayerValue}
+                />
+              ) : l.type === LayerType.Note ? (
+                <NoteLayerView
+                  key={l.id}
+                  layer={l}
+                  onChange={updateLayerValue}
+                />
+              ) : null
+            )}
+          </div>
+        </div>
+        <CursorsPresence />
+      </main>
+    </BoardSocketProvider>
   );
 };

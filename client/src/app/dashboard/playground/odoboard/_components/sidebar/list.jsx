@@ -25,7 +25,7 @@ export const List = () => {
     const fetchOrgs = async () => {
       try {
         const res = await fetch(
-          "http://127.0.0.1:8000/boardOrganisation/getOrganisations/",
+          "http://localhost:8000/boardOrganisation/getOrganisations/",
           {
             method: "GET",
             credentials: "include", // IMPORTANT for cookies
@@ -59,7 +59,7 @@ export const List = () => {
 const handleSelect = async (id) => {
   try {
     const res = await fetch(
-      "http://127.0.0.1:8000/boardOrganisation/setActiveOrganisation/",
+      "http://localhost:8000/boardOrganisation/setActiveOrganisation/",
       {
         method: "POST",
         credentials: "include",

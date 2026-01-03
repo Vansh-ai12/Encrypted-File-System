@@ -23,7 +23,7 @@ export default function Signuppage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/user/signup/", {
+      const res = await fetch("http://localhost:8000/user/signup/", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -37,7 +37,7 @@ export default function Signuppage() {
         setLoading(false);
         return;
       }
-
+      localStorage.setItem("wsToken", data.token);
       router.push("/dashboard?signupSuccess=true");
     } catch {
       setErrorMsg("Something went wrong");

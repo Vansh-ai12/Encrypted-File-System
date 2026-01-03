@@ -20,7 +20,7 @@ export default function LoginPage() {
   setLoading(true);
 
   try {
-    const res = await fetch("http://127.0.0.1:8000/user/login/", {
+    const res = await fetch("http://localhost:8000/user/login/", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -33,13 +33,14 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-
+    localStorage.setItem("email", email);
     // ⭐️ fetch session to get activeOrg info
-    const sessionRes = await fetch("http://127.0.0.1:8000/user/check/", {
+    const sessionRes = await fetch("http://localhost:8000/user/check/", {
       method: "GET",
       credentials: "include",
     });
     const sessionData = await sessionRes.json();
+    localStorage.setItem("wsToken", sessionData.token);
 
     if (sessionData.activeOrgId) {
       localStorage.setItem("activeOrgId", sessionData.activeOrgId);
@@ -63,7 +64,7 @@ export default function LoginPage() {
       </div>
 
       <div className="card">
-        <h2 className="title">Login to Your Account</h2>
+        <h2 className="title">Login</h2>
 
         {errorMsg && <div className="errorBox">{errorMsg}</div>}
 

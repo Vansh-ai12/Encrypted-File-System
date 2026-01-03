@@ -11,7 +11,7 @@ export default function Profile() {
 
   const handleLogoutConfirm = async () => {
     try {
-      await fetch("http://127.0.0.1:8000/user/logout/", {
+      await fetch("http://localhost:8000/user/logout/", {
         method: "POST",
         credentials: "include",
       });

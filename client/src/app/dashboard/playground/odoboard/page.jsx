@@ -18,7 +18,7 @@ export default function OdoBoardPage() {
 
   useEffect(() => {
     const checkSessionAndOrg = async () => {
-      const res = await fetch("http://127.0.0.1:8000/user/check/", {
+      const res = await fetch("http://localhost:8000/user/check/", {
         credentials: "include",
       });
       const data = await res.json();
@@ -46,7 +46,7 @@ export default function OdoBoardPage() {
       return;
     }
 
-    fetch("http://127.0.0.1:8000/boardOrganisation/getOrganisations/", {
+    fetch("http://localhost:8000/boardOrganisation/getOrganisations/", {
       credentials: "include",
     })
       .then((res) => res.json())

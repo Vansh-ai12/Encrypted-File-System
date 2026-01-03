@@ -6,5 +6,6 @@ urlpatterns = [
     path("removeBoard/",views.remove_board,name="removeBoard"),
     path("renameBoard/",views.rename_board,name="renameBoard"),
     path('toggleFavorite/', views.toggle_favorite, name="toggle_favorite"),
+    path('getBoardName/<uuid:boardId>/', views.get_board_name, name="get_board_name"),
 
 ]

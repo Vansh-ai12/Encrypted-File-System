@@ -3,7 +3,7 @@ from django.shortcuts import render
 # Create your views here.
 import json
 from django.http import JsonResponse
-from rest_framework.decorators import api_view
+
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -13,7 +13,10 @@ from .models import Board
 from .serializers import BoardSerializer
 from EncryptFileSystem.utils import cors_json
 
-@api_view(['POST'])
+
+from django.views.decorators.csrf import csrf_protect
+
+@csrf_protect
 def create_board(request):
     user = get_authenticated_user(request)
 
@@ -57,8 +60,7 @@ def create_board(request):
 
 
 
-
-@api_view(['GET'])
+@csrf_protect
 def get_boards(request):
     user = get_authenticated_user(request)
     if not user:
@@ -79,8 +81,7 @@ def get_boards(request):
 
 
 
-
-@api_view(['POST'])
+@csrf_protect
 def remove_board(request):
     user = get_authenticated_user(request)
 
@@ -115,12 +116,11 @@ def remove_board(request):
 
     return cors_json({"message": "Board deleted successfully"}, status=200)
 
-@api_view(['PUT'])
+@csrf_protect
 def rename_board(request):
     user = get_authenticated_user(request)
-
     if not user:
-        return cors_json({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+        return cors_json({"error": "Unauthorized"}, status=401)
 
     data = json.loads(request.body)
     board_id = data.get("boardId")
@@ -134,33 +134,26 @@ def rename_board(request):
     except Board.DoesNotExist:
         return cors_json({"error": "Board not found"}, status=404)
 
-    # Check membership
     membership = memberDetailModel.objects.filter(
         organisation=board.organisation,
-        memberInfo=user
+        memberInfo_id=user.id   # 🔥 FIX
     ).first()
 
     if not membership:
-        return cors_json({"error": "You are not a member of this organization"}, status=403)
+        return cors_json({"error": "Not a member"}, status=403)
 
-    # Authorization check: only Admin or Board Owner
-    if membership.role != "admin" and board.authorId != user.id:
-        return cors_json({"error": "You are not allowed to rename this board"}, status=403)
+    role = membership.role.strip().lower()
 
-    # Update title
+    if role != "admin" and board.authorId != user.id:
+        return cors_json({"error": "Forbidden"}, status=403)
+
     board.title = new_title
     board.save()
 
-    serializer = BoardSerializer(board)
-
-    return cors_json({
-        "message": "Board renamed successfully",
-        "board": serializer.data
-    }, status=200)
+    return cors_json({"message": "Board renamed successfully"}, status=200)
 
 
-
-@api_view(['PUT'])
+@csrf_protect
 def toggle_favorite(request):
     user = get_authenticated_user(request)
 
@@ -184,3 +177,27 @@ def toggle_favorite(request):
 
     return cors_json({"message": "Favorite updated successfully"}, status=200)
 
+@csrf_protect
+def get_board_name(request, boardId):
+    user = get_authenticated_user(request)
+
+    if not user:
+        return cors_json(
+            {"error": "Unauthorized"},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    try:
+        board = Board.objects.get(boardId=boardId)
+    except Board.DoesNotExist:
+        return cors_json(
+            {"error": "Board not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    return cors_json(
+        {
+            "title": board.title
+        },
+        status=status.HTTP_200_OK
+    )
