@@ -41,7 +41,10 @@ export const Participants = () => {
   }, []);
 
   return (
-    <div className="absolute top-2 right-2 flex gap-2 bg-white px-3 py-2 rounded shadow">
+    <div
+      data-ui
+      className="absolute top-2 right-2 z-[1000] flex gap-2 bg-white px-3 py-2 rounded shadow pointer-events-auto"
+    >
       {Object.values(participants).map((u) => (
         <UserAvatar
           key={u.connectionId}

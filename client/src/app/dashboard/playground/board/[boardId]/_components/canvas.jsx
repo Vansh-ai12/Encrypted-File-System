@@ -18,13 +18,18 @@ import { TextLayerView } from "./TextLayerView";
 import { NoteLayerView } from "./NoteLayerView";
 
 const MIN_ZOOM = 0.2;
-const MAX_ZOOM = 2.5;
+const MAX_ZOOM = 4;
+const MAX_LAYERS_PER_TYPE = 100;
 
 export const Canvas = () => {
   const [canvasState, setCanvasState] = useState({
     mode: CanvasMode.None,
     layerType: null,
   });
+
+  const editingTextIdRef = useRef(null);
+
+  const zoomVelocityRef = useRef(0);
 
   const [layers, setLayers] = useState([]);
 
@@ -33,6 +38,11 @@ export const Canvas = () => {
   const contentRef = useRef(null);
   const zoomTargetRef = useRef(1);
   const rafRef = useRef(null);
+
+  const canInsertLayer = (type) => {
+    const count = layers.filter((l) => l.type === type).length;
+    return count < MAX_LAYERS_PER_TYPE;
+  };
 
   const updateLayerValue = (id, value) => {
     const next = layers.map((l) => (l.id === id ? { ...l, value } : l));
@@ -113,8 +123,38 @@ export const Canvas = () => {
       }
 
       if (d.type === "LAYERS_REPLACE") {
-        console.log("FROM SERVER", d.layers);
+        if (editingTextIdRef.current) {
+          return;
+        }
         setLayers(d.layers);
+      }
+      if (d.type === "TEXT_LIVE_UPDATE") {
+        setLayers((prev) =>
+          prev.map((l) =>
+            l.id === d.id
+              ? {
+                  ...l,
+                  value: d.value,
+                  width: d.width,
+                  height: d.height,
+                }
+              : l
+          )
+        );
+      }
+      if (d.type === "NOTE_LIVE_UPDATE") {
+        setLayers((prev) =>
+          prev.map((l) =>
+            l.id === d.id
+              ? {
+                  ...l,
+                  value: d.value,
+                  width: d.width,
+                  height: d.height,
+                }
+              : l
+          )
+        );
       }
     };
 
@@ -125,6 +165,7 @@ export const Canvas = () => {
   /* ================= HISTORY ================= */
 
   const commitLayers = (next) => {
+    setLayers(next);
     window.dispatchEvent(
       new CustomEvent("board-ws-send", {
         detail: {
@@ -164,6 +205,50 @@ export const Canvas = () => {
     setCamera({ ...cameraRef.current });
   };
 
+  const startZoomAnimation = () => {
+    if (rafRef.current) return;
+
+    const animate = () => {
+      const cam = cameraRef.current;
+
+      // Apply velocity
+      if (Math.abs(zoomVelocityRef.current) < 0.00001) {
+        zoomVelocityRef.current = 0;
+        rafRef.current = null;
+        return;
+      }
+
+      const zoomDelta = Math.max(
+        -0.12,
+        Math.min(0.12, zoomVelocityRef.current)
+      );
+
+      const nextZoom = Math.min(
+        MAX_ZOOM,
+        Math.max(MIN_ZOOM, cam.zoom * Math.exp(zoomDelta))
+      );
+
+      const rect = containerRef.current.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+
+      const wx = (cx - cam.x) / cam.zoom;
+      const wy = (cy - cam.y) / cam.zoom;
+
+      cam.zoom = nextZoom;
+      cam.x = cx - wx * cam.zoom;
+      cam.y = cy - wy * cam.zoom;
+
+      // Friction (THIS is smoothness)
+      zoomVelocityRef.current *= 0.72;
+
+      applyTransform();
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+  };
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -175,51 +260,38 @@ export const Canvas = () => {
       const rect = containerRef.current.getBoundingClientRect();
 
       if (e.ctrlKey || e.metaKey) {
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const zoomFactor = Math.exp(-e.deltaY * 0.0025); // ← smoother
-        const nextZoom = Math.min(
-          MAX_ZOOM,
-          Math.max(MIN_ZOOM, cam.zoom * zoomFactor)
-        );
-
-        const wx = (mouseX - cam.x) / cam.zoom;
-        const wy = (mouseY - cam.y) / cam.zoom;
-
-        cam.zoom = nextZoom;
-        cam.x = mouseX - wx * nextZoom;
-        cam.y = mouseY - wy * nextZoom;
+        const zoomImpulse = -e.deltaY * 0.003; // 👈 important
+        zoomVelocityRef.current += zoomImpulse;
+        startZoomAnimation();
+        return;
       } else {
-        // NORMAL PAN
         cam.x -= e.deltaX;
         cam.y -= e.deltaY;
+        applyTransform();
       }
-
-      applyTransform();
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const onWheelEnd = () => {
-      setCamera({ ...cameraRef.current });
-      applyTransform();
-    };
-
-    el.addEventListener("wheel", onWheelEnd, { passive: true });
-    return () => el.removeEventListener("wheel", onWheelEnd);
-  }, []);
-
   /* ================= INSERT ================= */
 
   const onCanvasPointerDown = (e) => {
     if (canvasState.mode !== CanvasMode.Inserting) return;
+
+    const layerType = canvasState.layerType;
+
+    if (!canInsertLayer(layerType)) {
+      window.dispatchEvent(
+        new CustomEvent("toast", {
+          detail: { message: "Layer limit reached" },
+        })
+      );
+
+      setCanvasState({ mode: CanvasMode.None, layerType: null });
+      return;
+    }
 
     const cam = cameraRef.current;
     const rect = containerRef.current.getBoundingClientRect();
@@ -237,7 +309,7 @@ export const Canvas = () => {
         layer = { ...EllipseLayer };
         break;
       case LayerType.Text:
-        layer = { ...TextLayer };
+        layer = { ...TextLayer, isNew: true };
         break;
       case LayerType.Note:
         layer = { ...NoteLayer };
@@ -311,7 +383,7 @@ export const Canvas = () => {
                     strokeWidth={1 / camera.zoom}
                     vectorEffect="non-scaling-stroke"
                     shapeRendering="geometricPrecision"
-                    fill="transparent"
+                    fill={l.fill ?? "transparent"}
                     pointerEvents="auto"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -339,15 +411,40 @@ export const Canvas = () => {
             {layers.map((l) =>
               l.type === LayerType.Text ? (
                 <TextLayerView
-                  key={l.id}
                   layer={l}
-                  onChange={updateLayerValue}
+                  onCommit={(id, patch) => {
+                    // 🔥 track editing state
+                    if (patch.__editing) {
+                      editingTextIdRef.current = id;
+                    }
+
+                    if (patch.__editing === false) {
+                      editingTextIdRef.current = null;
+                    }
+
+                    const next = layers.map((layer) =>
+                      layer.id === id ? { ...layer, ...patch } : layer
+                    );
+
+                    // ✅ Always update local React state
+                    setLayers(next);
+
+                    // ❌ Skip backend for live typing
+                    if (patch.__local) return;
+
+                    // ✅ Final commit only
+                    commitLayers(next);
+                  }}
                 />
               ) : l.type === LayerType.Note ? (
                 <NoteLayerView
-                  key={l.id}
                   layer={l}
-                  onChange={updateLayerValue}
+                  onCommit={(id, patch) => {
+                    const next = layers.map((layer) =>
+                      layer.id === id ? { ...layer, ...patch } : layer
+                    );
+                    commitLayers(next);
+                  }}
                 />
               ) : null
             )}

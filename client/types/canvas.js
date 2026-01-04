@@ -42,7 +42,7 @@ export const RectangleLayer =Object.freeze({
     y:0,
     height:80,
     width:120,
-    fill:Color,
+    fill:Color || transparent,
     value:"",
 });
 export const EllipseLayer =Object.freeze({
@@ -74,7 +74,8 @@ export const TextLayer =Object.freeze( {
     height:80,
     width:120,
     fill:Color,
-    value:"",
+    value:"Type something",
+    isNew: true,
 });
 
 

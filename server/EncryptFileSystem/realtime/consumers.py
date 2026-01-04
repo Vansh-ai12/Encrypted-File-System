@@ -1,3 +1,4 @@
+from unittest import result
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.core.cache import cache
@@ -5,6 +6,9 @@ import json
 import copy
 
 ACTIVE_USERS_TTL = 60 * 60  # 1 hour
+
+MAX_LAYERS_PER_TYPE = 100
+
 
 
 class BoardConsumer(AsyncWebsocketConsumer):
@@ -53,7 +57,10 @@ class BoardConsumer(AsyncWebsocketConsumer):
         layers = cache.get(layers_key) or []
 
 # 🔥 NORMALIZE HERE
-        layers = [self.normalize_layer(l) for l in layers]
+        layers = self.dedupe_layers(
+            [self.normalize_layer(l) for l in layers]
+        )       
+
 
         cache.set(layers_key, layers, timeout=None)
 
@@ -79,6 +86,31 @@ class BoardConsumer(AsyncWebsocketConsumer):
                 "sender": self.channel_name,
             }
         )
+    
+    async def text_live(self, event):
+        if event["sender"] == self.channel_name:
+            return
+
+        await self.send(json.dumps({
+        "type": "TEXT_LIVE_UPDATE",
+        "id": event["id"],
+        "value": event["value"],
+        "width": event["width"],
+        "height": event["height"],
+    }))
+    async def note_live(self, event):
+        if event["sender"] == self.channel_name:
+            return
+
+        await self.send(json.dumps({
+        "type": "NOTE_LIVE_UPDATE",
+        "id": event["id"],
+        "value": event["value"],
+        "width": event["width"],
+        "height": event["height"],
+    }))
+
+
 
     async def disconnect(self, code):
         users_key = f"board:{self.board_id}:users"
@@ -130,6 +162,34 @@ class BoardConsumer(AsyncWebsocketConsumer):
         
         elif data["type"] == "REDO":
             await self.handle_redo()
+        elif data["type"] == "TEXT_LIVE_UPDATE":
+            await self.channel_layer.group_send(
+        self.group_name,
+        {
+            "type": "text.live",
+            "id": data["id"],
+            "value": data["value"],
+            "width": data["width"],
+            "height": data["height"],
+            "sender": self.channel_name,
+        }
+        )
+        elif data["type"] == "NOTE_LIVE_UPDATE":
+            await self.channel_layer.group_send(
+        self.group_name,
+        {
+            "type": "note.live",
+            "id": data["id"],
+            "value": data["value"],
+            "width": data["width"],
+            "height": data["height"],
+            "sender": self.channel_name,
+        }
+    )
+
+            
+        
+
 
     async def cursor_move(self, event):
         if event["sender"] == self.channel_name:
@@ -180,8 +240,13 @@ class BoardConsumer(AsyncWebsocketConsumer):
         cache.set(history_key, history, timeout=None)
         cache.set(redo_key, [], timeout=None)
     # ✅ NORMALIZE INCOMING STATE
-        normalized = [self.normalize_layer(l) for l in data["layers"]]
+        normalized = self.enforce_layer_limits(
+    self.dedupe_layers(
+        [self.normalize_layer(l) for l in data["layers"]]
+    )
+)
         cache.set(layers_key, normalized, timeout=None)
+
 
     # ✅ BROADCAST AUTHORITATIVE STATE
         await self.channel_layer.group_send(
@@ -204,8 +269,13 @@ class BoardConsumer(AsyncWebsocketConsumer):
         layers = cache.get(layers_key)
         redo = cache.get(redo_key) or []
 
-        prev = history.pop()
-        redo.insert(0, layers)
+        prev = self.enforce_layer_limits(
+    self.dedupe_layers(history.pop())
+)
+
+
+        redo.insert(0, self.dedupe_layers(layers))
+
         cache.set(history_key, history, timeout=None)
         cache.set(redo_key, redo, timeout=None)
         cache.set(layers_key, prev, timeout=None)
@@ -230,8 +300,13 @@ class BoardConsumer(AsyncWebsocketConsumer):
         layers = cache.get(layers_key)
         history = cache.get(history_key) or []
 
-        next_layers = redo.pop(0)
-        history.append(copy.deepcopy(layers))
+        next_layers = self.enforce_layer_limits(
+    self.dedupe_layers(redo.pop(0))
+)
+
+
+        history.append(copy.deepcopy(self.dedupe_layers(layers)))
+
 
         cache.set(history_key, history, timeout=None)
         cache.set(redo_key, redo, timeout=None)
@@ -276,6 +351,7 @@ class BoardConsumer(AsyncWebsocketConsumer):
             **layer,
             "width": layer.get("width", 120),
             "height": layer.get("height", 80),
+            "fill": layer.get("fill", "transparent"),
         }
 
         if t == "ellipse":
@@ -285,5 +361,57 @@ class BoardConsumer(AsyncWebsocketConsumer):
             "height": layer.get("height", 120),
         }
 
+        if t == "text":
+            return {
+            **layer,
+            "value": layer.get("value", ""),
+            "width": layer.get("width", 10),
+            "height": layer.get("height", 20),
+            "fontSize": layer.get("fontSize", 20),
+        }
+
+        if t == "note":
+            return {
+            **layer,
+            "value": layer.get("value", ""),
+            "width": layer.get("width", 120),
+            "height": layer.get("height", 40),
+        }
+
         return layer
+
+    def dedupe_layers(self, layers):
+        """
+        Enforce unique layer IDs.
+        Last write wins.
+        """
+        unique = {}
+        for layer in layers:
+            if "id" in layer:
+                unique[layer["id"]] = layer
+        return list(unique.values())
+
+
+    def enforce_layer_limits(self, layers):
+        counts = {}
+        result = []
+
+        for layer in layers:
+            t = layer.get("type")
+            if not t:
+                continue
+
+            counts[t] = counts.get(t, 0) + 1
+
+        # ✅ KEEP OLD LAYERS
+            if counts[t] <= MAX_LAYERS_PER_TYPE:
+                result.append(layer)
+            else:
+            # ❌ IGNORE ONLY THE NEW EXCESS
+                continue
+
+        return result
+
+
+
 

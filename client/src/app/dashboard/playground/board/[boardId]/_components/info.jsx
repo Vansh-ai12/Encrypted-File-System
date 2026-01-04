@@ -131,7 +131,10 @@ export const Info = () => {
   return (
     <>
       {/* ================= TOOLBAR ================= */}
-      <div className="absolute top-2 left-2 bg-white rounded-lg px-3 py-2 flex items-center shadow-md">
+      <div
+        data-ui
+        className="absolute top-2 left-2 z-[1000] bg-white rounded-lg px-3 py-2 flex items-center shadow-md pointer-events-auto"
+      >
         <Hint label="Go to boards" sideOffset={10}>
           <div className="px-2 py-1.5 rounded-md hover:bg-sky-200/40 cursor-pointer">
             <OdoBoardLogo size={40} />
