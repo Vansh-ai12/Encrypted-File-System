@@ -46,3 +46,30 @@ class Board(models.Model):
         indexes = [
             models.Index(fields=['title'], name='title_search_idx')
         ]
+
+
+
+class BoardSnapshot(models.Model):
+    board_id = models.CharField(max_length=64, db_index=True)
+    layers = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    version = models.BigIntegerField()
+    class Meta:
+        indexes = [
+            models.Index(fields=["board_id", "version"]),
+        ]
+
+
+
+class BoardOperation(models.Model):
+    board_id = models.CharField(max_length=64, db_index=True)
+    user_id = models.IntegerField()
+    op_type = models.CharField(max_length=50)  # ADD, UPDATE, DELETE, MOVE, TEXT_EDIT, etc
+    payload = models.JSONField()               # operation data
+    version = models.BigIntegerField()         # monotonically increasing
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["board_id", "version"]),
+        ]

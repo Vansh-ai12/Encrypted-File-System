@@ -16,6 +16,8 @@ from EncryptFileSystem.utils import cors_json
 
 from django.views.decorators.csrf import csrf_protect
 
+
+
 @csrf_protect
 def create_board(request):
     user = get_authenticated_user(request)

@@ -1,64 +1,98 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef } from "react";
 import { MousePointer2 } from "lucide-react";
 import { connectionIdToColor } from "@/hooks/utils";
 
-export const Cursor = memo(({ info }) => {
-  const [cursor, setCursor] = useState(info);
+const SMOOTHING = 0.22; // 0.18–0.28 sweet spot
 
+export const Cursor = memo(({ user }) => {
+  const ref = useRef(null);
+  const rafRef = useRef(null);
+
+  const current = useRef({ x: user.x ?? 0, y: user.y ?? 0 });
+  const target = useRef({ x: user.x ?? 0, y: user.y ?? 0 });
+  const visible = useRef(false);
+
+  // 🎯 Update target on WS updates
   useEffect(() => {
-    const handler = (e) => {
-      const data = e.detail;
-      if (!cursor || data.connectionId !== cursor.connectionId) return;
+    if (user.x == null || user.y == null) return;
 
-      if (data.type === "CURSOR_HIDE") {
-        setCursor((prev) => prev && { ...prev, x: null, y: null });
+    target.current.x = user.x;
+    target.current.y = user.y;
+
+    if (user.visible && !rafRef.current) start();
+  }, [user.x, user.y, user.visible]);
+
+  const start = () => {
+    visible.current = true;
+
+    const tick = () => {
+      if (!ref.current) return stop();
+      if (!visible.current) return stop();
+
+      const cam = window.__BOARD_CAMERA__?.current;
+      if (!cam) {
+        stop();
+        return;
       }
 
-      if (data.type === "CURSOR_MOVE") {
-        setCursor((prev) =>
-          prev ? { ...prev, x: data.x, y: data.y } : prev
-        );
-      }
+      // 🧠 Smooth follow (LERP)
+      current.current.x += (target.current.x - current.current.x) * SMOOTHING;
+      current.current.y += (target.current.y - current.current.y) * SMOOTHING;
+
+      const screenX = current.current.x * cam.zoom + cam.x;
+      const screenY = current.current.y * cam.zoom + cam.y;
+
+      ref.current.style.transform = `translate3d(${screenX}px, ${screenY}px, 0)`;
+
+      rafRef.current = requestAnimationFrame(tick);
     };
 
-    window.addEventListener("board-ws-message", handler);
-    return () => window.removeEventListener("board-ws-message", handler);
-  }, [cursor]);
+    rafRef.current = requestAnimationFrame(tick);
+  };
 
-  if (!cursor || cursor.x == null || cursor.y == null) return null;
+  const stop = () => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+  };
 
-  // ✅ GET CAMERA
-  const camRef = window.__BOARD_CAMERA__;
-  if (!camRef?.current) return null;
+  // 👻 Handle visibility
+  useEffect(() => {
+    if (!user.visible) {
+      visible.current = false;
+      stop();
+    } else {
+      visible.current = true;
+      if (!rafRef.current) start();
+    }
+  }, [user.visible]);
 
-  const { x: camX, y: camY, zoom } = camRef.current;
+  useEffect(() => stop, []);
 
-  // ✅ WORLD → SCREEN
-  const screenX = cursor.x * zoom + camX;
-  const screenY = cursor.y * zoom + camY;
+  useEffect(() => {
+    if (user.visible && !rafRef.current) {
+      start();
+    }
+  }, [user.visible]);
 
-  const color = connectionIdToColor(cursor.connectionId);
+  if (!user.visible) return null;
+
+  const color = connectionIdToColor(user.connectionId);
 
   return (
     <div
-      className="fixed pointer-events-none z-[9999]"
-      style={{
-        left: screenX,
-        top: screenY,
-        transform: "translate(-4px, -4px)",
-      }}
+      ref={ref}
+      className="absolute pointer-events-none z-[9999]"
+      style={{ willChange: "transform" }}
     >
-      <MousePointer2 size={18} color={color} />
+      <MousePointer2 size={18} stroke={color} fill={color} />
       <div
         className="mt-1 px-2 py-0.5 rounded text-xs text-white whitespace-nowrap"
         style={{ backgroundColor: color }}
       >
-        {cursor.name}
+        {user.name}
       </div>
     </div>
   );
 });
-
-Cursor.displayName = "Cursor";

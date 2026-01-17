@@ -9,6 +9,8 @@ import {
   Redo2,
 } from "lucide-react";
 
+import { useEffect } from "react";
+
 import { CanvasMode, LayerType } from "../../../../../../../types/canvas";
 import { ToolButton } from "./tool-button";
 
@@ -27,10 +29,13 @@ export const Toolbar = ({
     });
   };
 
+  
+
   return (
-    <div 
-    data-ui
-    className="absolute top-1/2 z-20 -translate-y-1/2 left-2 flex flex-col gap-y-4">
+    <div
+      data-ui
+      className="absolute top-1/2 z-20 -translate-y-1/2 left-2 flex flex-col gap-y-4"
+    >
       <div className="bg-white rounded-md p-1.5 flex flex-col gap-y-1 items-center shadow-md">
         <ToolButton
           label="Select"
@@ -120,9 +125,7 @@ export const Toolbar = ({
         <ToolButton
           label="Pen"
           icon={Pencil}
-          isActive={
-            canvasState.mode === CanvasMode.Pencil
-          }
+          isActive={canvasState.mode === CanvasMode.Pencil}
           onClick={() =>
             setCanvasState({
               ...canvasState,

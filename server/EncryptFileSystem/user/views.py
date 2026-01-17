@@ -6,12 +6,14 @@ from django.shortcuts import render
 
 from .Hashing import createHash
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import ensure_csrf_cookie
+
 
 from .models import Users
 from http import cookies
 
 
-@csrf_exempt
+@ensure_csrf_cookie
 def signUp(request):
     
     if request.method == "OPTIONS":
@@ -73,7 +75,7 @@ def signUp(request):
     return response
 
 
-@csrf_exempt
+@ensure_csrf_cookie
 def login(request):
     if request.method == "OPTIONS":
         response = JsonResponse({"message": "Preflight OK"}, status=200)
@@ -132,8 +134,7 @@ def login(request):
 
 
 
-
-@csrf_exempt
+@ensure_csrf_cookie
 def logout(request):
     cookie = cookies.SimpleCookie()
     cookie.load(request.META.get("HTTP_COOKIE", ""))
@@ -167,8 +168,7 @@ def changePassword(request):
     user.save()
     return JsonResponse({"message": "Password changed successfully"}, status=200)
 
-
-@csrf_exempt
+@ensure_csrf_cookie
 def check_session(request):
     token = request.COOKIES.get("session")
     user = Users.objects.filter(token=token).first()

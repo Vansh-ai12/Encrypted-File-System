@@ -21,11 +21,7 @@ export default function DashboardPage() {
     }
   }, [signupSuccess]);
   
-  useEffect(() => {
-    fetch("http://localhost:8000/user/csrf/", {
-      credentials: "include",
-    });
-  }, []);
+
 
   return (
     <div className="flex-col">

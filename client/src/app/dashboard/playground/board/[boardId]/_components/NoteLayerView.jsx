@@ -1,130 +1,173 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useContext } from "react";
+import { BoardSocketContext } from "@/hooks/board-socket-context";
 
-export function NoteLayerView({ layer, onCommit }) {
-  const ref = useRef(null);
+export function NoteLayerView({
+  layer,
+  onCommit,
+  onPointerDown,
+  isManualResizingRef,
+  editingLayerIdsRef,
+}) {
+  const textRef = useRef(null);
   const rafRef = useRef(null);
+  const didEditRef = useRef(false);
+  const { send } = useContext(BoardSocketContext);
 
-  // 🔁 Sync React → DOM (ONLY when NOT typing)
+  // Sync value (NOT while typing)
   useEffect(() => {
-    const el = ref.current;
+    const el = textRef.current;
     if (!el) return;
-
     if (document.activeElement === el) return;
-
     el.innerText = layer.value || "";
-    resize();
   }, [layer.value]);
 
-  // 🎯 Auto-focus newly created note
+  // Autofocus new note
   useEffect(() => {
-    if (!ref.current) return;
+    if (!textRef.current) return;
+    if (!layer.isNew) return;
 
-    if (layer.isNew) {
-      ref.current.focus();
-      placeCaretAtEnd(ref.current);
+    textRef.current.focus();
+    placeCaretAtEnd(textRef.current);
+    didEditRef.current = true;
 
-      onCommit(layer.id, {
-        isNew: false,
-        __local: true,
-        __editing: true,
-      });
-    }
+    onCommit(layer.id, {
+      isNew: false,
+      __local: true,
+      __editing: true,
+    });
   }, []);
 
-  const resize = () => {
-    const el = ref.current;
-    if (!el) return;
-
-    el.style.width = "auto";
-    el.style.height = "auto";
-
-    el.style.width = el.scrollWidth + 32 + "px";
-    el.style.height = el.scrollHeight + 16 + "px";
-  };
-
-  // 🔥 LIVE (local + websocket)
   const commitLive = () => {
-    if (rafRef.current) return;
+    if (!didEditRef.current || rafRef.current) return;
 
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
-      const el = ref.current;
+      const el = textRef.current;
       if (!el) return;
 
-      const payload = {
+      onCommit(layer.id, {
         value: el.innerText,
-        width: el.scrollWidth + 32,
-        height: el.scrollHeight + 16,
         __local: true,
         __editing: true,
-      };
+      });
 
-      onCommit(layer.id, payload);
-
-      window.dispatchEvent(
-        new CustomEvent("board-ws-send", {
-          detail: {
-            type: "NOTE_LIVE_UPDATE",
-            id: layer.id,
-            value: payload.value,
-            width: payload.width,
-            height: payload.height,
-          },
-        })
-      );
+      send({
+        type: "NOTE_LIVE_UPDATE",
+        id: layer.id,
+        value: el.innerText,
+        width: layer.width,
+        height: layer.height,
+      });
     });
   };
 
-  // ✅ FINAL commit → backend
   const commitFinal = () => {
-    const el = ref.current;
-    if (!el) return;
+    if (!didEditRef.current) return;
+    didEditRef.current = false;
 
     onCommit(layer.id, {
-      value: el.innerText,
-      width: el.scrollWidth + 32,
-      height: el.scrollHeight + 16,
+      value: textRef.current.innerText,
+      width: layer.width,
+      height: layer.height,
       __editing: false,
+    });
+  };
+
+  const isEditing = editingLayerIdsRef.current.has(layer.id);
+
+  const enterEditMode = () => {
+    editingLayerIdsRef.current.add(layer.id);
+
+    onCommit(layer.id, {
+      __editing: true,
+      __local: true,
+    });
+
+    requestAnimationFrame(() => {
+      textRef.current?.focus();
+      placeCaretAtEnd(textRef.current);
     });
   };
 
   return (
     <div
-      ref={ref}
-      contentEditable
-      suppressContentEditableWarning
-      spellCheck={false}
-      className="
-        absolute
-        shadow-md
-        outline-none
-        cursor-text
-        bg-yellow-200
-        focus:ring-2
-        focus:ring-blue-400
-        box-border
-        px-4 py-2
-        whitespace-pre-wrap
-      "
+      className="absolute bg-yellow-200 shadow-md"
+      data-layer
       style={{
         left: layer.x,
         top: layer.y,
-        fontSize: 20,
-        lineHeight: "1.3",
-        minWidth: 120,
-        minHeight: 40,
+        width: layer.width,
+        height: layer.height,
+        backgroundColor: layer.style.fill,
+        overflow: "hidden",
+        zIndex: 1,
       }}
       onPointerDown={(e) => {
         e.stopPropagation();
-        e.nativeEvent.stopImmediatePropagation();
+        onCommit(layer.id, { __select: true });
+
+        if (!isEditing) {
+          onPointerDown?.(e); // drag
+        }
       }}
-      onInput={() => {
-        resize();
-        commitLive();
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        enterEditMode();
       }}
-      onBlur={commitFinal}
-    />
+    >
+      {/* 🔒 SCALE WHOLE CONTENT (TEXT + PADDING) */}
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {/* 🔒 STATIC CONTENT BLOCK */}
+        <div
+          ref={textRef}
+          contentEditable={isEditing}
+          suppressContentEditableWarning
+          spellCheck={false}
+          onInput={() => {
+            if (isManualResizingRef.current) return;
+            didEditRef.current = true;
+            commitLive();
+          }}
+          onBlur={commitFinal}
+          style={{
+            width: "100%",
+            height: "100%",
+
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+
+            boxSizing: "border-box",
+
+            padding: "6px 8px", // 🔒 CONSTANT
+            boxSizing: "border-box",
+
+            fontSize: getFontSize(layer), // 🔥 ONLY FONT CHANGES
+            fontWeight: 500,
+            lineHeight: "1.2",
+
+            textAlign: "center",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+
+            outline: "none",
+            border: "none",
+            background: "transparent",
+            caretColor: "#000",
+          }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -135,4 +178,20 @@ function placeCaretAtEnd(el) {
   const sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);
+}
+
+function getFontSize(layer) {
+  const BASE = 120; // reference note size
+  const BASE_FONT = 40;
+
+  const scale = Math.min(layer.width / BASE, layer.height / BASE, 1);
+
+  return Math.max(14, BASE_FONT * scale);
+}
+
+function getNoteScale(layer) {
+  const BASE = 120; // reference Miro note size
+  const scale = Math.min(layer.width / BASE, layer.height / BASE, 1);
+
+  return Math.max(0.4, scale); // never disappears
 }

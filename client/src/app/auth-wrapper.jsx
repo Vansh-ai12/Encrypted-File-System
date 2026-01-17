@@ -11,6 +11,7 @@ export default function AuthWrapper({ children }) {
     typeof window !== "undefined" ? window.location.pathname : "";
   const isInvitePage = path.startsWith("/invite/");
 
+
   useEffect(() => {
     const checkSession = async () => {
       try {

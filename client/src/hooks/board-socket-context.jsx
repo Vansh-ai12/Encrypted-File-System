@@ -1,15 +1,33 @@
 "use client";
-import { createContext, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
 
-export const BoardSocketContext = createContext(true);
+import { createContext, useEffect, useRef, useState } from "react";
 
-export const BoardSocketProvider = ({ children }) => {
+export const BoardSocketContext = createContext(null);
+
+export function BoardSocketProvider({ children, boardId }) {
   const socketRef = useRef(null);
-  const { boardId } = useParams();
+  const queueRef = useRef([]);
+
+  const [initState, setInitState] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [selfConnectionId, setSelfConnectionId] = useState(null);
+  const [lastEvent, setLastEvent] = useState(null);
+
+  const send = (msg) => {
+    const ws = socketRef.current;
+    if (!ws) return;
+
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(msg));
+    } else {
+      queueRef.current.push(msg);
+    }
+  };
 
   useEffect(() => {
     if (!boardId || socketRef.current) return;
+
+    setUsers([]);
 
     const token = localStorage.getItem("wsToken");
     if (!token) return;
@@ -18,37 +36,80 @@ export const BoardSocketProvider = ({ children }) => {
       `ws://localhost:8000/ws/board/${boardId}/?token=${token}`
     );
 
+    ws.onopen = () => {
+      socketRef.current = ws;
+      queueRef.current.forEach((m) => ws.send(JSON.stringify(m)));
+      queueRef.current = [];
+    };
+
     ws.onmessage = (e) => {
-      window.dispatchEvent(
-        new CustomEvent("board-ws-message", {
-          detail: JSON.parse(e.data),
-        })
-      );
-    };
+      const data = JSON.parse(e.data);
 
-    socketRef.current = ws;
+      // ✅ persist init snapshot
+      if (data.type === "INIT_STATE") {
+        setInitState(data);
+      }
 
-    return () => {
-      ws.close();
-      socketRef.current = null;
-    };
-  }, [boardId]);
+      setLastEvent(data);
 
-  useEffect(() => {
-    const sendHandler = (e) => {
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify(e.detail));
+      if (data.type === "CURSOR_MOVE") {
+        setUsers((prev) => {
+          const exists = prev.find((u) => u.connectionId === data.connectionId);
+
+          if (exists) {
+            return prev.map((u) =>
+              u.connectionId === data.connectionId
+                ? { ...u, x: data.x, y: data.y, visible: true }
+                : u
+            );
+          }
+
+          // 🔥 INSERT if missing
+          return [
+            ...prev,
+            {
+              connectionId: data.connectionId,
+              x: data.x,
+              y: data.y,
+              visible: true,
+              name: "User",
+            },
+          ];
+        });
+      }
+
+      if (data.type === "CURSOR_HIDE") {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.connectionId === data.connectionId ? { ...u, visible: false } : u
+          )
+        );
+      }
+
+      if (data.type === "INIT_USERS") {
+        setUsers(data.users);
+        setSelfConnectionId(data.selfConnectionId);
+      }
+
+      if (data.type === "USER_JOIN") {
+        setUsers((prev) => [...prev, data.user]);
+      }
+
+      if (data.type === "USER_LEAVE") {
+        setUsers((prev) =>
+          prev.filter((u) => u.connectionId !== data.connectionId)
+        );
       }
     };
 
-    window.addEventListener("board-ws-send", sendHandler);
-    return () =>
-      window.removeEventListener("board-ws-send", sendHandler);
-  }, []);
+    return () => ws.close();
+  }, [boardId]);
 
   return (
-    <BoardSocketContext.Provider value={true}>
+    <BoardSocketContext.Provider
+      value={{ users, selfConnectionId, send, lastEvent, initState }}
+    >
       {children}
     </BoardSocketContext.Provider>
   );
-};
+}

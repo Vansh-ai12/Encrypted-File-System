@@ -61,11 +61,27 @@ INSTALLED_APPS = [
 ASGI_APPLICATION = 'EncryptFileSystem.asgi.application'
 
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
+
+REDIS_ENABLED = os.getenv("REDIS_ENABLED", "false") == "true"
+
+if REDIS_ENABLED:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [("127.0.0.1", 6379)],
+                "capacity": 2000,
+                "expiry": 10,
+            },
+        },
     }
-}
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
+
 
 
 MIDDLEWARE = [
@@ -164,15 +180,23 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/0",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+if REDIS_ENABLED:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": "redis://127.0.0.1:6379/0",
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            }
         }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
+
 
 
 
@@ -215,8 +239,8 @@ CORS_ALLOW_METHODS = [
 
 
 # Cookies 🍪
-SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SAMESITE = "None"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = False  # because using http://localhost
 CSRF_COOKIE_SECURE = False

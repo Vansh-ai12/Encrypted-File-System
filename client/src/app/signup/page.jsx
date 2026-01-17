@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "@/Components/Logo";
+import getCookie from "@/hooks/GetCookie";
 
 export default function Signuppage() {
   const [username, setUsername] = useState("");
@@ -26,7 +27,9 @@ export default function Signuppage() {
       const res = await fetch("http://localhost:8000/user/signup/", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+         },
         body: JSON.stringify({ username, email, password }),
       });
 

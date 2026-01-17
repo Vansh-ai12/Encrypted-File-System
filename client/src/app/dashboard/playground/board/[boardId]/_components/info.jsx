@@ -8,6 +8,8 @@ import OdoBoardLogo from "@/Components/OdoBoardLogo";
 import { Hint } from "@/Components/hints";
 import { Button } from "@/Components/ui/button";
 
+import getCookie from "@/hooks/GetCookie";
+
 /* ================= SEPARATOR ================= */
 const TabSeparator = () => <div className="mx-2 h-4 w-px bg-neutral-400/80" />;
 
@@ -84,7 +86,9 @@ export const Info = () => {
       const res = await fetch("http://localhost:8000/board/renameBoard/", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+         },
         body: JSON.stringify({ boardId, title: newTitle }),
       });
 
@@ -110,7 +114,9 @@ export const Info = () => {
       const res = await fetch("http://localhost:8000/board/removeBoard/", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+         },
         body: JSON.stringify({ boardId }),
       });
 

@@ -22,7 +22,12 @@ const BoardIdPage = () => {
     );
   }
 
-  return <Canvas />;
+  return (
+  
+       <Canvas />
+   
+ 
+);
 };
 
 export default BoardIdPage;

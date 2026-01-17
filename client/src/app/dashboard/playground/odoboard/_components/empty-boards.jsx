@@ -3,7 +3,7 @@
 import { LayoutPanelLeft, Plus } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
+import getCookie from "@/hooks/GetCookie";
 export const NoBoards = () => {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -32,6 +32,7 @@ export const NoBoards = () => {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
         },
         body: JSON.stringify(payload),
       });

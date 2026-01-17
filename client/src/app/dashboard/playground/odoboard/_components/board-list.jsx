@@ -97,6 +97,7 @@ export const BoardList = ({ search, favorites }) => {
     setBoards(updated);
 
     try {
+
       await fetch("http://localhost:8000/board/toggleFavorite/", {
         method: "POST",
         credentials: "include",
