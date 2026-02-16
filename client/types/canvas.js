@@ -31,7 +31,25 @@ export const LayerType = {
   Path: "path",
   Text: "text",
   Note: "note",
+  AutoText :"AUTO_TEXT",
 };
+
+
+
+export const AutoTextLayer = {
+  type: "AUTO_TEXT",
+  x: 0,
+  y: 0,
+  width: 100,
+  height: 40,
+  value: "",
+  style: {
+    textColor: "#000000",
+    fontSize: 18,
+    opacity: 1,
+  },
+};
+
 
 export const RectangleLayer = Object.freeze({
   type: LayerType.Rectangle,
@@ -83,7 +101,7 @@ export const TextLayer = Object.freeze({
   value: "Type something",
   style: {
     textColor: "#000000",
-    fontSize: 20,
+    fontSize: 28,
   },
   isNew: true,
 });
@@ -121,6 +139,8 @@ export const Side = {
   Left: 4,
   Right: 8,
 };
+
+
 
 export const Layer =
   RectangleLayer | EllipseLayer | PathLayer | TextLayer | NoteLayer;

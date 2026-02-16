@@ -8,6 +8,8 @@ import OdoBoardLogo from "@/Components/OdoBoardLogo";
 import { Hint } from "@/Components/hints";
 import { Button } from "@/Components/ui/button";
 
+import { memo } from "react";
+
 import getCookie from "@/hooks/GetCookie";
 
 /* ================= SEPARATOR ================= */
@@ -15,7 +17,7 @@ const TabSeparator = () => <div className="mx-2 h-4 w-px bg-neutral-400/80" />;
 
 /* ================= CUSTOM HAMBURGER ================= */
 
-export const Info = () => {
+export const Info = memo(() => {
   const { boardId } = useParams();
   const router = useRouter();
   const menuRef = useRef(null);
@@ -72,7 +74,7 @@ export const Info = () => {
   /* ================= ACTIONS ================= */
   const handleCopy = () => {
     navigator.clipboard.writeText(
-      `${window.location.origin}/dashboard/playground/board/${boardId}`
+      `${window.location.origin}/dashboard/playground/board/${boardId}`,
     );
     setShowMenu(false);
     showToast("Board link copied!");
@@ -86,9 +88,10 @@ export const Info = () => {
       const res = await fetch("http://localhost:8000/board/renameBoard/", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json",
+        headers: {
+          "Content-Type": "application/json",
           "X-CSRFToken": getCookie("csrftoken"),
-         },
+        },
         body: JSON.stringify({ boardId, title: newTitle }),
       });
 
@@ -114,9 +117,10 @@ export const Info = () => {
       const res = await fetch("http://localhost:8000/board/removeBoard/", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json",
+        headers: {
+          "Content-Type": "application/json",
           "X-CSRFToken": getCookie("csrftoken"),
-         },
+        },
         body: JSON.stringify({ boardId }),
       });
 
@@ -141,7 +145,7 @@ export const Info = () => {
         data-ui
         className="absolute top-2 left-2 z-[1000] bg-white rounded-lg px-3 py-2 flex items-center shadow-md pointer-events-auto"
       >
-        <Hint label="Go to boards" sideOffset={10}>
+        <Hint label="Go to boards" sideOffset={8} side="bottom">
           <div className="px-2 py-1.5 rounded-md hover:bg-sky-200/40 cursor-pointer">
             <OdoBoardLogo size={40} />
           </div>
@@ -149,14 +153,18 @@ export const Info = () => {
 
         <TabSeparator />
 
-        {/* Board Name (click to rename) */}
-        <Hint label="Rename board" sideOffset={10}>
+        <Hint label="Rename board" sideOffset={8} side="bottom">
           <Button
+            asChild // ✅ IMPORTANT
             variant="board"
             className="bg-transparent p-0"
-            onClick={() => setShowRename(true)}
           >
-            <span className="px-4 py-2 rounded-md hover:bg-sky-200/40 hover:cursor-pointer">
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={() => setShowRename(true)}
+              className="px-4 py-2 rounded-md hover:bg-sky-200/40 hover:cursor-pointer"
+            >
               <span className="text-[18px] tracking-tight">
                 {boardName || "Loading…"}
               </span>
@@ -168,19 +176,20 @@ export const Info = () => {
 
         {/* MENU */}
         <div className="relative" ref={menuRef}>
-          <Hint label="Menu" sideOffset={10}>
+          <Hint label="Menu" sideOffset={8} side="bottom">
             <Button
+              asChild // ✅ IMPORTANT
               variant="ghost"
-              className="
-    h-16 w-[72px]
-    flex items-center justify-center
-    text-neutral-900
-    hover:bg-sky-200/40
-    cursor-pointer
-  "
-              onClick={() => setShowMenu((v) => !v)}
+              className="h-16 w-[72px] flex items-center justify-center"
             >
-              <Menu size={38} strokeWidth={2.8} className="scale-110" />
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowMenu((v) => !v)}
+                className="cursor-pointer"
+              >
+                <Menu size={38} strokeWidth={2.8} className="scale-110" />
+              </span>
             </Button>
           </Hint>
 
@@ -249,7 +258,7 @@ export const Info = () => {
       )}
     </>
   );
-};
+});
 
 /* ================= SHARED UI ================= */
 const MenuItem = ({ icon, label, onClick, danger }) => (

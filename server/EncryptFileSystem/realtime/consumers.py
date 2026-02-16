@@ -1,3 +1,4 @@
+from genericpath import exists
 from xml.etree.ElementPath import ops
 from django.db.models import Max
 
@@ -11,6 +12,10 @@ import copy
 from django.db import transaction
 
 import time
+
+
+
+
 
 
 ACTIVE_USERS_TTL = 60 * 60  # 1 hour
@@ -396,26 +401,31 @@ class BoardConsumer(AsyncWebsocketConsumer):
 
 # 🔥 WRITE TO REDIS ONLY AFTER CONFIRMED CHANGE
         safe_cache_set(layers_key, incoming_layers, timeout=None)
-# ---------- CLEAR REDO HISTORY ----------
-        
-  # 🔒 DO NOT increment version
 
+# ✅ GET VERSION FIRST
         current_version = safe_cache_get(version_key, 0)
 
-        new_version = current_version + 1
+        if current_version == 0:
+            exists = await self.snapshot_exists()
+            if not exists:
+                await self.persist_snapshot(current_layers)
 
+# ✅ NOW INCREMENT VERSION
+        new_version = current_version + 1
         safe_cache_set(version_key, new_version, timeout=None)
 
-# 🔥 clear redo ONLY when real commit happens
-        await self.clear_redo_history(new_version)
+
+        
 
 
-# persist ops
-        await self.persist_operations(
-    prev_layers=current_layers,
-    next_layers=incoming_layers,
+
+
+
+        await self.persist_operations_from_diff(
+    ops=ops,
     version=new_version
 )
+
 
 
 
@@ -521,6 +531,40 @@ class BoardConsumer(AsyncWebsocketConsumer):
             ).exists()
         except Board.DoesNotExist:
             return False
+    
+
+
+    @database_sync_to_async
+    def snapshot_exists(self):
+        from board.models import BoardSnapshot
+        return BoardSnapshot.objects.filter(
+        board_id=self.board_id,
+        version=0
+    ).exists()
+
+
+    @database_sync_to_async
+    def persist_operations_from_diff(self, ops, version):
+        from board.models import BoardOperation
+
+        if not ops:
+            return
+
+        with transaction.atomic():
+            records = []
+            for op in ops:
+                records.append(
+                BoardOperation(
+                    board_id=self.board_id,
+                    user_id=self.user.id,
+                    op_type=op["type"],
+                    payload=op,
+                    version=version,
+                )
+            )
+
+            BoardOperation.objects.bulk_create(records)
+
     @database_sync_to_async
     def persist_snapshot(self, layers):
         from board.models import BoardSnapshot
@@ -621,22 +665,6 @@ class BoardConsumer(AsyncWebsocketConsumer):
             layers = apply_op(layers, op.payload)
 
         return layers
-
-    @database_sync_to_async
-    def clear_redo_history(self, current_version):
-        from board.models import BoardOperation
-        BoardOperation.objects.filter(
-        board_id=self.board_id,
-        version__gt=current_version
-    ).delete()
-
-
-
-
-
-
-
-        
 
     def normalize_layer(self, layer):
         t = layer.get("type")

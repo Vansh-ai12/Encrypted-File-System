@@ -1,8 +1,8 @@
-
 import { Geist, Geist_Mono } from "next/font/google";
-
 import "./globals.css";
 import AuthWrapper from "./auth-wrapper";
+import { Providers } from "./providers";
+import { TooltipProvider } from "@/Components/ui/tooltip";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,9 +26,13 @@ export default function RootLayout({ children }) {
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased h-full h-screen`}
       >
-        <AuthWrapper>
-          {children}
-        </AuthWrapper>
+        <Providers>
+          <AuthWrapper>
+            <TooltipProvider delayDuration={300}>
+              {children}
+            </TooltipProvider>
+          </AuthWrapper>
+        </Providers>
       </body>
     </html>
   );

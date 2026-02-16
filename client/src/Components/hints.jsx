@@ -1,38 +1,39 @@
+"use client";
+
+import * as React from "react";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
 } from "@/Components/ui/tooltip";
 
-export const Hint = ({
+const HintTrigger = React.forwardRef(function HintTrigger(
+  { children, ...props },
+  ref
+) {
+  return (
+    <span ref={ref} className="inline-flex" {...props}>
+      {children}
+    </span>
+  );
+});
+
+export const Hint = React.memo(function Hint({
   label,
   children,
-  side = "top",
-  align = "center",
-  sideOffset ,
-  alignOffset,
-}) => {
+  side,
+  align,
+  sideOffset,
+}) {
   return (
-    <TooltipProvider>
-      <Tooltip delayedDuration = {100}>
-        <TooltipTrigger asChild>
-          {children}
-        </TooltipTrigger>
-        <TooltipContent
-          className="text-white bg-black border-black"
-          side={side}
-          align = {align}
-          sideOffset = {sideOffset}
-          alignOffset = {alignOffset}
-        >
-          <p className="font-semibold capitalize">
-            {label}
-          </p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <HintTrigger>{children}</HintTrigger>
+      </TooltipTrigger>
+
+      <TooltipContent side={side} align={align} sideOffset={sideOffset}>
+        <p className="font-semibold capitalize">{label}</p>
+      </TooltipContent>
+    </Tooltip>
   );
-};
-
-
+});

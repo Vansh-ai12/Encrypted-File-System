@@ -22,7 +22,6 @@ export function NoteLayerView({
     el.innerText = layer.value || "";
   }, [layer.value]);
 
-  // Autofocus new note
   useEffect(() => {
     if (!textRef.current) return;
     if (!layer.isNew) return;
@@ -30,6 +29,11 @@ export function NoteLayerView({
     textRef.current.focus();
     placeCaretAtEnd(textRef.current);
     didEditRef.current = true;
+
+    // ✅ FORCE INITIAL FIT
+    requestAnimationFrame(() => {
+      fitTextToBox(textRef.current, 8);
+    });
 
     onCommit(layer.id, {
       isNew: false,
@@ -85,15 +89,24 @@ export function NoteLayerView({
     });
 
     requestAnimationFrame(() => {
-      textRef.current?.focus();
-      placeCaretAtEnd(textRef.current);
+      textRef.current?.focus(); 
     });
   };
+
+  useEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+
+    requestAnimationFrame(() => {
+      fitTextToBox(el, 8);
+    });
+  }, [layer.width, layer.height, layer.style.fontSize, layer.value]);
 
   return (
     <div
       className="absolute bg-yellow-200 shadow-md"
       data-layer
+      data-selection-safe
       style={{
         left: layer.x,
         top: layer.y,
@@ -105,11 +118,49 @@ export function NoteLayerView({
       }}
       onPointerDown={(e) => {
         e.stopPropagation();
+
+        const isEditingNow = editingLayerIdsRef.current.has(layer.id);
+
+        // 🔥 CRITICAL: allow caret clicks but block drag logic
+        if (isEditingNow) {
+          return;
+        }
+
+        // Prevent text highlight when not editing (keeps drag smooth)
+        e.preventDefault();
+
+        // First click = selection (Miro behavior)
         onCommit(layer.id, { __select: true });
 
-        if (!isEditing) {
-          onPointerDown?.(e); // drag
+        // New note = instant edit (keep feature)
+        if (layer.isNew) {
+          enterEditMode();
+          return;
         }
+
+        let moved = false;
+
+        const onMove = () => {
+          moved = true;
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+
+          // Start drag instead of edit
+          onPointerDown?.(e);
+        };
+
+        const onUp = () => {
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+
+          // 🎯 SECOND CLICK (no drag) = EDIT MODE (MIRO EXACT UX)
+          if (!moved && !editingLayerIdsRef.current.has(layer.id)) {
+            enterEditMode();
+          }
+        };
+
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
@@ -130,35 +181,40 @@ export function NoteLayerView({
         <div
           ref={textRef}
           contentEditable={isEditing}
+          data-base-font-size={layer.style.fontSize}
           suppressContentEditableWarning
           spellCheck={false}
           onInput={() => {
             if (isManualResizingRef.current) return;
+
+            // 🔥 auto shrink while typing (Miro behavior)
+            fitTextToBox(textRef.current);
+
             didEditRef.current = true;
             commitLive();
           }}
           onBlur={commitFinal}
           style={{
             width: "100%",
-            height: "100%",
-
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            textAlign: "center",
+            height: "auto",
 
             boxSizing: "border-box",
-
-            padding: "6px 8px", // 🔒 CONSTANT
-            boxSizing: "border-box",
-
-            fontSize: getFontSize(layer), // 🔥 ONLY FONT CHANGES
-            fontWeight: 500,
-            lineHeight: "1.2",
+            padding: layer.value ? "0.3em 0.5em" : "4px 6px",
 
             textAlign: "center",
+
+            display: "block",
+
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
+            overflowWrap: "break-word",
+
+            fontSize: getNoteFontSize(layer),
+            fontWeight: 500,
+            lineHeight: "1.25",
+
+            whiteSpace: "pre-wrap",
+            overflowWrap: "break-word",
 
             outline: "none",
             border: "none",
@@ -180,13 +236,8 @@ function placeCaretAtEnd(el) {
   sel.addRange(range);
 }
 
-function getFontSize(layer) {
-  const BASE = 120; // reference note size
-  const BASE_FONT = 40;
-
-  const scale = Math.min(layer.width / BASE, layer.height / BASE, 1);
-
-  return Math.max(14, BASE_FONT * scale);
+function getNoteFontSize(layer) {
+  return layer.style.fontSize;
 }
 
 function getNoteScale(layer) {
@@ -194,4 +245,24 @@ function getNoteScale(layer) {
   const scale = Math.min(layer.width / BASE, layer.height / BASE, 1);
 
   return Math.max(0.4, scale); // never disappears
+}
+
+function fitTextToBox(el, min = 8) {
+  if (!el) return;
+
+  const baseSize = parseFloat(el.dataset.baseFontSize);
+  if (baseSize) el.style.fontSize = baseSize + "px";
+
+  let fontSize = parseFloat(getComputedStyle(el).fontSize);
+
+  const fits = () => {
+    return (
+      el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight
+    );
+  };
+
+  while (!fits() && fontSize > min) {
+    fontSize -= 1;
+    el.style.fontSize = fontSize + "px";
+  }
 }
