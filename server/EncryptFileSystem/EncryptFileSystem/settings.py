@@ -246,19 +246,13 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     "authorization",
 ]
 
-CORS_ALLOWED_ORIGINS = [
-   "https://odon-5y8lpudlg-vansh-jains-projects-c99da508.vercel.app"
-]
+
 
 CSRF_TRUSTED_ORIGINS = [
    "https://odon-5y8lpudlg-vansh-jains-projects-c99da508.vercel.app"
 ]
 
-CORS_ALLOW_HEADERS = [
-    "content-type",
-    "x-csrftoken",
-    "authorization",
-]
+
 
 CORS_ALLOW_METHODS = [
     "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS",
