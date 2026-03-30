@@ -18,72 +18,9 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-def get_vector_store():
-    global embeddings_model, vector_store
 
-    if embeddings_model is None:
-        embeddings_model = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
 
-    from qdrant_client import QdrantClient
 
-    qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
-    qdrant_api_key = os.getenv("QDRANT_API_KEY", None)
-
-    client = QdrantClient(
-        url=qdrant_url,
-        api_key=qdrant_api_key,  # None locally, real key in production
-    )
-
-    vector_store = QdrantVectorStore(
-        client=client,
-        collection_name="Learning_Rag",
-        embedding=embeddings_model
-    )
-
-    return vector_store
-
-def index_document(
-    file_id: str,
-    file_name: str,
-    raw_text: str,
-    user_id: int,
-    workspace_id: int = None
-) -> Dict:
-
-    try:
-        docs = [
-            Document(
-                page_content=raw_text,
-                metadata={
-                    "file_id": file_id,
-                    "file_name": file_name,
-                    "user_id": user_id,             
-                    "workspace_id": workspace_id   
-                }
-            )
-        ]
-
-        chunks = text_splitter.split_documents(docs)
-
-        for i, chunk in enumerate(chunks):
-            chunk.metadata["chunk_id"] = i
-
-        vs = get_vector_store()
-        vs.add_documents(chunks)
-
-        return {
-            "status": "success",
-            "chunks_indexed": len(chunks),
-            "file_id": file_id
-        }
-
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
 
 
 def retrieve_chunks(
