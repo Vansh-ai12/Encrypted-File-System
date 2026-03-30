@@ -1,6 +1,6 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-from .RAG import index_document, retrieve_chunks, build_llm_context, rag_pipeline
+from .RAG import  retrieve_chunks, build_llm_context, rag_pipeline
 
 # Create your views here.
 
