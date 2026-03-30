@@ -13,7 +13,7 @@ const LoginActivityPanel = () => {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await fetch("http://localhost:8000/user/login-activity/", {
+        const res = await fetch("https://encrypted-file-system-production.up.railway.app/user/login-activity/", {
           credentials: "include",
         });
 
@@ -74,7 +74,7 @@ const UsageChart = () => {
 
     // 1️⃣ INITIAL FETCH
     const fetchUsage = async () => {
-      const res = await fetch("http://localhost:8000/user/usage/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/user/usage/", {
         credentials: "include",
       });
 
@@ -111,7 +111,7 @@ const UsageChart = () => {
     // 3️⃣ SYNC WITH BACKEND (every 5 sec)
     const syncInterval = setInterval(async () => {
       try {
-        const res = await fetch("http://localhost:8000/user/usage/", {
+        const res = await fetch("https://encrypted-file-system-production.up.railway.app/user/usage/", {
           credentials: "include",
         });
 
@@ -132,7 +132,7 @@ const UsageChart = () => {
     const sendInterval = setInterval(() => {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-      fetch("http://localhost:8000/user/track-visit/", {
+      fetch("https://encrypted-file-system-production.up.railway.app/user/track-visit/", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -300,13 +300,13 @@ export default function DashboardPage() {
 
     try {
       const res = await fetch(
-        `http://localhost:8000/uploads/list/?workspace_id=${selectedCluster.id}`,
+        `https://encrypted-file-system-production.up.railway.app/uploads/list/?workspace_id=${selectedCluster.id}`,
         { credentials: "include" },
       );
 
       const files = await res.json();
 
-      await fetch("http://localhost:8000/security/scan/", {
+      await fetch("https://encrypted-file-system-production.up.railway.app/security/scan/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -329,12 +329,12 @@ export default function DashboardPage() {
     const init = async () => {
       try {
         // 🔐 STEP 1: get CSRF cookie
-        await fetch("http://localhost:8000/user/csrf/", {
+        await fetch("https://encrypted-file-system-production.up.railway.app/user/csrf/", {
           method: "GET",
           credentials: "include",
         });
 
-        const response = await fetch("http://localhost:8000/workspaces/", {
+        const response = await fetch("https://encrypted-file-system-production.up.railway.app/workspaces/", {
           method: "GET",
           credentials: "include",
         });
@@ -351,7 +351,7 @@ export default function DashboardPage() {
             data.map(async (cluster) => {
               try {
                 const res = await fetch(
-                  `http://localhost:8000/uploads/list/?workspace_id=${cluster.id}`,
+                  `https://encrypted-file-system-production.up.railway.app/uploads/list/?workspace_id=${cluster.id}`,
                   { credentials: "include" },
                 );
 
@@ -439,7 +439,7 @@ export default function DashboardPage() {
     setAiThinking(true);
 
     try {
-      const res = await fetch("http://localhost:8000/griff/chatbot-reply/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/griff/chatbot-reply/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -484,7 +484,7 @@ export default function DashboardPage() {
   const handleDeleteCluster = async (id) => {
     try {
       // Inside handleDeleteCluster
-      const response = await fetch(`http://localhost:8000/workspaces/${id}/`, {
+      const response = await fetch(`https://encrypted-file-system-production.up.railway.app/workspaces/${id}/`, {
         method: "DELETE",
         credentials: "include", // <--- ADD THIS
         headers: {
@@ -860,7 +860,7 @@ export default function DashboardPage() {
                         onClick={async () => {
                           try {
                             const res = await fetch(
-                              "http://localhost:8000/user/check/",
+                              "https://encrypted-file-system-production.up.railway.app/user/check/",
                               {
                                 credentials: "include",
                               },
@@ -889,7 +889,7 @@ export default function DashboardPage() {
 
                           try {
                             const res = await fetch(
-                              `http://localhost:8000/uploads/list/?workspace_id=${cluster.id}`,
+                              `https://encrypted-file-system-production.up.railway.app/uploads/list/?workspace_id=${cluster.id}`,
                               { credentials: "include" },
                             );
 

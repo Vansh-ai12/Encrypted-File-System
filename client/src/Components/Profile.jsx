@@ -13,7 +13,7 @@ export default function Profile() {
 
   const handleLogoutConfirm = async () => {
     try {
-      await fetch("http://localhost:8000/user/logout/", {
+      await fetch("https://encrypted-file-system-production.up.railway.app/user/logout/", {
         method: "POST",
         credentials: "include",
       });
@@ -29,7 +29,7 @@ export default function Profile() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("http://localhost:8000/user/check/", {
+        const res = await fetch("https://encrypted-file-system-production.up.railway.app/user/check/", {
           credentials: "include",
         });
 
