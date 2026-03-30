@@ -239,11 +239,11 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    "https://odon-nine.vercel.app/",
 ] + os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
+    "https://odon-nine.vercel.app/",
 ] + os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
 
 CORS_ALLOW_HEADERS = [
