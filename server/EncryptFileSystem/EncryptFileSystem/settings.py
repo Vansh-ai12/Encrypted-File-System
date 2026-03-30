@@ -239,12 +239,12 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "https://odon-nine.vercel.app/",
-] + os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+   "https://odon-5y8lpudlg-vansh-jains-projects-c99da508.vercel.app/"
+]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://odon-nine.vercel.app/",
-] + os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    "https://odon-5y8lpudlg-vansh-jains-projects-c99da508.vercel.app/",
+] 
 
 CORS_ALLOW_HEADERS = [
     "content-type",
