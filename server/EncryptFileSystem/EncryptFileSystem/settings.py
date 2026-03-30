@@ -229,14 +229,21 @@ EMAIL_USE_SSL = False
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"] + os.getenv("ALLOWED_HOSTS", "").split(",")
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "encrypted-file-system-production.up.railway.app"
+]
 
 
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-# CORS 🤝
+
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "https://odon-5y8lpudlg-vansh-jains-projects-c99da508.vercel.app"
+]
 
 from corsheaders.defaults import default_headers
 
