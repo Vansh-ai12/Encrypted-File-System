@@ -6,7 +6,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@/components/ui/avatar";
+} from "../../../../../../Components/ui/avatar";
 import { connectionIdToColor } from "@/hooks/utils";
 
 export const UserAvatar = memo(
