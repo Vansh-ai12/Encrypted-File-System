@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useContext } from "react";
+import { useEffect, useRef, useContext, useState } from "react";
 import { BoardSocketContext } from "@/hooks/board-socket-context";
 
 export function TextLayerView({
@@ -14,6 +14,14 @@ export function TextLayerView({
   const ref = useRef(null);
   const rafRef = useRef(null);
   const didEditRef = useRef(false);
+
+  const shouldFocusRef = useRef(false);
+
+  const lastClickTimeRef = useRef(0);
+
+  const [isEditingState, setIsEditingState] = useState(
+    () => editingLayerIdsRef?.current?.has(layer.id) ?? false,
+  );
 
   const commitFinal = () => {
     const el = ref.current;
@@ -43,33 +51,24 @@ export function TextLayerView({
     if (!ref.current) return;
     if (!layer.isNew) return;
 
-    ref.current.focus();
-    placeCaretAtEnd(ref.current);
+    editingLayerIdsRef.current.add(layer.id);
 
-    // ✅ FORCE INITIAL FIT
     requestAnimationFrame(() => {
-      fitTextToBox(ref.current, 8);
-    });
+      const el = ref.current;
+      if (!el) return;
 
-    didEditRef.current = true;
+      el.focus();
+      placeCaretAtEnd(el);
+    });
 
     onCommit(layer.id, {
       isNew: false,
-      __local: true,
       __editing: true,
+      __local: true,
     });
   }, []);
-
-  const isEditing = editingLayerIdsRef?.current?.has(layer.id);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    if (!isEditing) {
-      el.innerText = layer.value || "";
-    }
-  }, [layer.value, isEditing]);
+  const isEditing =
+    isEditingState || (editingLayerIdsRef?.current?.has(layer.id) ?? false);
 
   const enterEditMode = () => {
     editingLayerIdsRef.current.add(layer.id);
@@ -83,53 +82,86 @@ export function TextLayerView({
       const el = ref.current;
       if (!el) return;
 
-    
       el.focus();
+      placeCaretAtEnd(el);
     });
   };
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (!isEditing) {
+      el.innerText = layer.value || "";
+    }
+  }, [layer.value, isEditing]);
 
-    fitTextToBox(el, 8);
-  }, [layer.width, layer.height, layer.style.fontSize, layer.value]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!isEditing) {
+      setIsEditingState(false);
+      return;
+    }
+    if (!shouldFocusRef.current) return;
+    shouldFocusRef.current = false;
+    requestAnimationFrame(() => {
+      if (!ref.current) return;
+      ref.current.focus();
+      placeCaretAtEnd(ref.current);
+    });
+  }, [isEditing]);
 
   return (
     <>
       <div
         data-layer
         data-selection-safe
+        data-id={layer.id}
+        data-selected={layer.__selected ? "true" : "false"}
         data-base-font-size={layer.style.fontSize}
         ref={ref}
-        contentEditable={isEditing || layer.isNew}
+        contentEditable={isEditing}
         suppressContentEditableWarning
         data-placeholder="Type something"
+        onInput={() => {
+          if (isManualResizingRef.current) return;
+
+          didEditRef.current = true;
+
+          autoResize(ref.current, layer, onCommit);
+
+          send({
+            type: "TEXT_LIVE_UPDATE",
+            id: layer.id,
+            value: ref.current.innerText,
+            width: layer.width,
+            height: layer.height,
+          });
+        }}
         spellCheck={false}
         style={{
+          position: "absolute",
+
+          left: layer.x,
+          top: layer.y,
+
+          minWidth: layer.width,
+          minHeight: layer.height,
+
+          width: "auto",
+          height: "auto",
+
           cursor: isEditing ? "text" : "move",
 
           userSelect: isEditing ? "text" : "none",
           WebkitUserSelect: isEditing ? "text" : "none",
           MozUserSelect: isEditing ? "text" : "none",
 
-          left: layer.x,
-          top: layer.y,
-
-          width: layer.width,
-          height: layer.height,
-
-          position: "absolute",
-
-          overflow: "hidden",
-
           whiteSpace: "pre-wrap",
 
-          pointerEvents: isEditing ? "auto" : "auto",
+          pointerEvents: "auto",
 
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          display: "block",
           textAlign: "center",
           lineHeight: "1.25",
 
@@ -147,77 +179,65 @@ export function TextLayerView({
 
           fontSize: layer.style.fontSize,
           fontWeight: 500,
-          lineHeight: "1.25",
           color: layer.style.textColor,
-        }}
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          enterEditMode();
+          caretColor: "#000000",
         }}
         onPointerDown={(e) => {
-          e.stopPropagation();
+          const isSelected = layer.__selected === true;
+          const isEditing = editingLayerIdsRef?.current?.has(layer.id);
 
-          const isEditingNow = editingLayerIdsRef.current.has(layer.id);
+          // ✅ already editing → allow typing
+          if (isEditing) return;
 
-          // 🧠 MIRO RULE #1:
-          // If already editing → DO NOTHING (allow caret movement freely)
-          if (isEditingNow) {
-            return; // 🔥 THIS LINE FIXES YOUR CURSOR ISSUE
-          }
+          const now = Date.now();
+          const last = lastClickTimeRef.current;
 
-          // Prevent text highlight when NOT editing (keeps drag smooth)
-          e.preventDefault();
-
-          // First click = selection (blue box)
-          onCommit(layer.id, { __select: true });
-
-          // New layer = instant edit (keep your feature)
-          if (layer.isNew) {
-            enterEditMode();
+          // 🟢 FIRST CLICK → SELECT
+          if (!isSelected) {
+            lastClickTimeRef.current = now;
+            e.stopPropagation();
+            onCommit(layer.id, { __select: true });
             return;
           }
 
-          let moved = false;
-
-          const onMove = () => {
-            moved = true;
-            window.removeEventListener("pointermove", onMove);
-            window.removeEventListener("pointerup", onUp);
-
-            // Drag instead of editing (preserves your drag system)
-            onPointerDown?.(e);
-          };
-
-          const onUp = () => {
-            window.removeEventListener("pointermove", onMove);
-            window.removeEventListener("pointerup", onUp);
-
-            // 🎯 SECOND CLICK (no drag) = ENTER EDIT MODE (MIRO BEHAVIOR)
-            if (!moved && !editingLayerIdsRef.current.has(layer.id)) {
-              enterEditMode();
-            }
-          };
-
-          window.addEventListener("pointermove", onMove);
-          window.addEventListener("pointerup", onUp);
-        }}
-        onBlur={commitFinal}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") ref.current.blur();
-          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") ref.current.blur();
-
-          if (e.key === "Enter") {
+          // 🟡 SECOND CLICK → EDIT
+          if (now - last < 350) {
+            e.stopPropagation();
             e.preventDefault();
-            document.execCommand("insertLineBreak");
+
+            shouldFocusRef.current = true;
+            editingLayerIdsRef.current.add(layer.id);
+            setIsEditingState(true);
+
+            onCommit(layer.id, {
+              __editing: true,
+              __local: true,
+            });
+
+            return;
           }
+
+          // 🔵 OTHERWISE → DRAG
+          lastClickTimeRef.current = now;
+
+          if (!isEditing) {
+            window.getSelection()?.removeAllRanges();
+          }
+
+          onPointerDown?.(e);
         }}
       />
       <style jsx>{`
-        [contenteditable][data-placeholder]:empty::before,
-        [contenteditable][data-placeholder]:not(:focus):empty::before {
+        [contenteditable][data-placeholder]:empty::before {
           content: attr(data-placeholder);
-          color: #999;
+          color: #9ca3af;
           pointer-events: none;
+        }
+
+        /* 🔥 PROMINENT BLINKING CURSOR */
+        [contenteditable="true"] {
+          caret-color: #000;
+          text-shadow: 0 0 0 #000;
         }
       `}</style>
     </>
@@ -247,22 +267,18 @@ function measureText(el) {
   };
 }
 
-function fitTextToBox(el, min = 8) {
+function autoResize(el, layer, onCommit) {
   if (!el) return;
 
-  const baseSize = parseFloat(el.dataset.baseFontSize);
-  if (baseSize) el.style.fontSize = baseSize + "px";
+  const rect = el.getBoundingClientRect();
+  const zoom = window.__BOARD_CAMERA__?.current?.zoom ?? 1;
 
-  let fontSize = parseFloat(getComputedStyle(el).fontSize);
+  const width = Math.ceil(rect.width / zoom) + 2;
+  const height = Math.ceil(rect.height / zoom) + 2;
 
-  const fits = () => {
-    return (
-      el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight
-    );
-  };
-
-  while (!fits() && fontSize > min) {
-    fontSize -= 1;
-    el.style.fontSize = fontSize + "px";
-  }
+  onCommit(layer.id, {
+    width,
+    height,
+    __local: true,
+  });
 }

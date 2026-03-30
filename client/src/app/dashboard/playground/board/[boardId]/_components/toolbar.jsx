@@ -7,7 +7,11 @@ import {
   Pencil,
   Undo2,
   Redo2,
+  ArrowRight,
+  Minus,
 } from "lucide-react";
+
+import { FileCode2 } from "lucide-react";
 
 import { useEffect } from "react";
 
@@ -25,7 +29,6 @@ export const Toolbar = React.memo(function Toolbar({
   canRedo,
   isInteractingRef,
 }) {
-
   const setMode = useCallback(
     (mode) => {
       setCanvasState((prev) => ({
@@ -36,27 +39,42 @@ export const Toolbar = React.memo(function Toolbar({
     [setCanvasState],
   );
 
-  const isInteracting = isInteractingRef.current;
+  const [isInteracting, setIsInteracting] = React.useState(false);
 
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIsInteracting(isInteractingRef.current);
+    }, 50);
+
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div
       data-ui
       onWheelCapture={(e) => e.stopPropagation()}
-      className="absolute top-1/2 z-20 -translate-y-1/2 left-2 flex flex-col gap-y-4"
+      className="fixed top-1/2 left-4 -translate-y-1/2 z-[99999] flex flex-col gap-y-4 pointer-events-auto"
     >
       <div className="bg-white rounded-md p-1.5 flex flex-col gap-y-1 items-center shadow-md">
         <ToolButton
           label="Select"
           icon={MousePointer2}
-          isActive={
-            canvasState.mode === CanvasMode.None ||
-            canvasState.mode === CanvasMode.SelectionNet ||
-            canvasState.mode === CanvasMode.Translating ||
-            canvasState.mode === CanvasMode.Resizing ||
-            canvasState.mode === CanvasMode.Pressing
-          }
-          onClick={() => setMode(CanvasMode.None)}
+          isActive={canvasState.mode === CanvasMode.None}
+          onClick={() => {
+            if (canvasState.mode === CanvasMode.None) {
+              setCanvasState({
+                ...canvasState,
+                mode: "PAN", // deselected → hand mode
+                layerType: null,
+              });
+            } else {
+              setCanvasState({
+                ...canvasState,
+                mode: CanvasMode.None,
+                layerType: null,
+              });
+            }
+          }}
           isInteracting={isInteracting}
         />
 
@@ -147,6 +165,55 @@ export const Toolbar = React.memo(function Toolbar({
               layerType: null,
               origin: null,
               current: null,
+            })
+          }
+          isInteracting={isInteracting}
+        />
+        <ToolButton
+          label="Arrow"
+          icon={ArrowRight}
+          isActive={
+            canvasState.mode === CanvasMode.Inserting &&
+            canvasState.layerType === "ARROW"
+          }
+          onClick={() =>
+            setCanvasState({
+              ...canvasState,
+              mode: CanvasMode.Inserting,
+              layerType: "ARROW",
+              origin: null,
+              current: null,
+            })
+          }
+          isInteracting={isInteracting}
+        />
+
+        <ToolButton
+          label="Line"
+          icon={Minus}
+          isActive={
+            canvasState.mode === CanvasMode.Inserting &&
+            canvasState.layerType === "LINE"
+          }
+          onClick={() =>
+            setCanvasState({
+              ...canvasState,
+              mode: CanvasMode.Inserting,
+              layerType: "LINE",
+              origin: null,
+              current: null,
+            })
+          }
+          isInteracting={isInteracting}
+        />
+        <ToolButton
+          label="HTML Preview"
+          icon={FileCode2}
+          isActive={canvasState.mode === "HTML_PREVIEW"}
+          onClick={() =>
+            setCanvasState({
+              ...canvasState,
+              mode: "HTML_PREVIEW",
             })
           }
           isInteracting={isInteracting}

@@ -1,10 +1,11 @@
 "use client";
 
-const HIT = 14; // invisible hit area
+const HIT = 14; 
 
-// spacing from layer (uniform)
-const PAD = 4; // constant spacing
-const HANDLE = 6; // constant handle radius
+const PAD = 4; 
+const HANDLE = 6; 
+
+import { LayerType } from "../../../../../../../types/canvas";
 
 export const SelectionBox = ({
   bounds,
@@ -20,9 +21,7 @@ export const SelectionBox = ({
 
   const pad = PAD;
 
-  const zoom = window.__BOARD_CAMERA__?.current?.zoom ?? 1;
-
-  const handleSize = isAutoText ? 9 : HANDLE;
+  const handleSize = isAutoText ? 12 : 10;
   const hit = isAutoText ? 20 : HIT;
 
   const bx = x - pad;
@@ -30,11 +29,31 @@ export const SelectionBox = ({
   const bw = width + pad * 2;
   const bh = height + pad * 2;
 
+  const SHOW_MID_DOTS_TYPES = [
+    LayerType.Path,
+    LayerType.Rectangle,
+    LayerType.Ellipse,
+    LayerType.Note,
+    LayerType.Text,
+    LayerType.AutoText,
+  ];
+
   const corners = [
     ["nw", bx, by, "nwse-resize"],
     ["ne", bx + bw, by, "nesw-resize"],
     ["se", bx + bw, by + bh, "nwse-resize"],
     ["sw", bx, by + bh, "nesw-resize"],
+  ];
+
+  // 🔥 MIRO-STYLE: screen-stable offset (not zoom scaled)
+  const cameraZoom = window.__BOARD_CAMERA__?.current?.zoom ?? 1;
+  const DOT_OFFSET = 36 / cameraZoom; // 🔥 Miro-like distance
+
+  const midpoints = [
+    ["top-mid", bx + bw / 2, by - DOT_OFFSET, "grab"],
+    ["right-mid", bx + bw + DOT_OFFSET, by + bh / 2, "grab"],
+    ["bottom-mid", bx + bw / 2, by + bh + DOT_OFFSET, "grab"],
+    ["left-mid", bx - DOT_OFFSET, by + bh / 2, "grab"],
   ];
 
   const edges = [
@@ -48,17 +67,16 @@ export const SelectionBox = ({
   const HALF = STROKE / 2;
   return (
     <>
-      {/* Outline */}
-
       {/* 🔥 DRAG HIT AREA (INVISIBLE FILL) */}
       <rect
         data-selection
+        data-selection-safe
         x={bx}
         y={by}
         width={bw}
         height={bh}
-        fill="transparent" 
-        pointerEvents="all" 
+        fill="transparent"
+        pointerEvents={isAutoText ? "none" : "all"} 
       />
 
       {/* Visible Outline */}
@@ -79,16 +97,17 @@ export const SelectionBox = ({
       {edges.map(([key, ex, ey, ew, eh, cursor]) => (
         <rect
           key={key}
+          data-selection-handle
           x={ex}
           y={ey}
           width={ew}
           height={eh}
           fill="transparent"
           style={{ cursor }}
-          pointerEvents="all"
+          pointerEvents={isAutoText ? "none" : "all"}
           onPointerDown={(e) => {
             e.stopPropagation();
-            onResizeHandlePointerDown(e, key);
+            onResizeHandlePointerDown(e, key); // 🔥 THIS WAS MISSING
           }}
         />
       ))}
@@ -103,7 +122,7 @@ export const SelectionBox = ({
             cy={cy}
             r={handleSize * 2} // BIG hit area
             fill="transparent"
-            pointerEvents="all"
+            pointerEvents={isAutoText ? "none" : "all"}
             style={{ cursor }}
             onPointerDown={(e) => {
               e.stopPropagation();

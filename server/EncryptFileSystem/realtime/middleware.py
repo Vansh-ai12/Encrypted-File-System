@@ -15,6 +15,8 @@ class TokenAuthMiddleware(BaseMiddleware):
         token = query.get("token", [None])[0]
 
         if token:
+            print("QUERY STRING:", scope["query_string"])
+            print("TOKEN:", token)
             user = await self.get_user(token)
             if user:
                 scope["user"] = user
@@ -24,4 +26,12 @@ class TokenAuthMiddleware(BaseMiddleware):
     @database_sync_to_async
     def get_user(self, token):
         from user.models import Users
-        return Users.objects.filter(token=token).first()
+    
+        user = Users.objects.filter(token=token).first()
+    
+        print("DB USER:", user)
+    
+        if not user:
+            print("❌ TOKEN NOT FOUND IN DB:", token)
+    
+        return user

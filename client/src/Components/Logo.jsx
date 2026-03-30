@@ -9,16 +9,26 @@ export default function OdonLogo({ size = 64, className = "" }) {
 
   const handleClick = async () => {
     try {
+      // ⚡ instant check first
+      const cached = localStorage.getItem("isLoggedIn");
+
+      if (cached === "true") {
+        router.push("/dashboard");
+        return;
+      }
+
+      // fallback → real check
       const res = await fetch("http://localhost:8000/user/check/", {
-        method: "POST",
         credentials: "include",
       });
 
       const data = await res.json();
 
       if (data.loggedIn) {
+        localStorage.setItem("isLoggedIn", "true");
         router.push("/dashboard");
       } else {
+        localStorage.removeItem("isLoggedIn");
         router.push("/");
       }
     } catch {
@@ -27,24 +37,35 @@ export default function OdonLogo({ size = 64, className = "" }) {
   };
 
   return (
-    <div className={`inline-flex items-center ${className}`}
-         onClick={handleClick}
-         style={{ cursor: "pointer" }}>
-      {/* SVG and text stay the same */}
-      <svg width={height} height={height} viewBox="0 0 100 100">
-        <path d="M50,5 A45,45 0 0 0 5,50 A45,45 0 0 0 50,95" fill="#7c3aed" />
-        <path d="M50,95 A45,45 0 0 0 95,50 A45,45 0 0 0 50,5" fill="#0f172a" />
-        <circle cx="50" cy="50" r="26" fill="white" />
+    <div
+      className={`inline-flex items-center ${className}`}
+      onClick={handleClick}
+      style={{ cursor: "pointer" }}
+    >
+      <svg
+        width={height}
+        height={height}
+        viewBox="0 0 100 100"
+        style={{ flexShrink: 0 }}
+      >
+        <path d="M50,5 A45,45 0 0 0 5,50 A45,45 0 0 0 50,95" fill="#facc15" />
+        <path d="M50,95 A45,45 0 0 0 95,50 A45,45 0 0 0 50,5" fill="#fb923c" />
       </svg>
 
-      <span style={{
-        fontWeight: 800,
-        fontSize,
-        color: "#0f172a",
-        display: "flex",
-        alignItems: "center",
-      }}>
-        d<span style={{ color: "#7c3aed" }}>o</span>n
+      <span
+        style={{
+          fontWeight: 700, // Slightly lighter for a cleaner startup look
+          fontSize: fontSize,
+          color: "#ffffff",
+          display: "flex",
+          alignItems: "center",
+          marginLeft: `${size * 0.05}px`, // Changed from negative to a small positive gap
+          fontFamily: "'Inter', 'Plus Jakarta Sans', 'Lexend', sans-serif", // Modern geometric startup fonts
+          letterSpacing: "-0.02em", // Subtle tightening
+          textTransform: "lowercase",
+        }}
+      >
+        d<span style={{ color: "#facc15" }}>o</span>n
       </span>
     </div>
   );

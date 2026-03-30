@@ -61,7 +61,7 @@ export const RectangleLayer = Object.freeze({
   style: {
     fill: "transparent",
     stroke: "#000000",
-    strokeWidth: 1.25,
+    strokeWidth: 3,
   },
 });
 export const EllipseLayer = Object.freeze({
@@ -74,7 +74,7 @@ export const EllipseLayer = Object.freeze({
   style: {
     fill: "transparent",
     stroke: "#000000",
-    strokeWidth: 1.25,
+    strokeWidth: 3,
   },
 });
 

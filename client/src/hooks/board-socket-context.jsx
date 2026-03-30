@@ -25,11 +25,18 @@ export function BoardSocketProvider({ children, boardId }) {
   };
 
   useEffect(() => {
+  const init = async () => {
     if (!boardId || socketRef.current) return;
 
     setUsers([]);
 
-    const token = localStorage.getItem("wsToken");
+    const res = await fetch("http://localhost:8000/user/check/", {
+      credentials: "include",
+    });
+
+    const data = await res.json();
+    const token = data.token;
+
     if (!token) return;
 
     const ws = new WebSocket(
@@ -45,7 +52,6 @@ export function BoardSocketProvider({ children, boardId }) {
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
 
-      // ✅ persist init snapshot
       if (data.type === "INIT_STATE") {
         setInitState(data);
       }
@@ -64,7 +70,6 @@ export function BoardSocketProvider({ children, boardId }) {
             );
           }
 
-          // 🔥 INSERT if missing
           return [
             ...prev,
             {
@@ -102,8 +107,16 @@ export function BoardSocketProvider({ children, boardId }) {
       }
     };
 
-    return () => ws.close();
-  }, [boardId]);
+    socketRef.current = ws;
+  };
+
+  init();
+
+  return () => {
+    socketRef.current?.close();
+    socketRef.current = null;
+  };
+}, [boardId]);
 
   return (
     <BoardSocketContext.Provider

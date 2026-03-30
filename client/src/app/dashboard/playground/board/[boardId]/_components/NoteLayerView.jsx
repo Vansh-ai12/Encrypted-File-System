@@ -12,6 +12,7 @@ export function NoteLayerView({
   const textRef = useRef(null);
   const rafRef = useRef(null);
   const didEditRef = useRef(false);
+  const lastClickTimeRef = useRef(0);
   const { send } = useContext(BoardSocketContext);
 
   // Sync value (NOT while typing)
@@ -26,20 +27,25 @@ export function NoteLayerView({
     if (!textRef.current) return;
     if (!layer.isNew) return;
 
-    textRef.current.focus();
-    placeCaretAtEnd(textRef.current);
-    didEditRef.current = true;
-
-    // ✅ FORCE INITIAL FIT
-    requestAnimationFrame(() => {
-      fitTextToBox(textRef.current, 8);
-    });
+    // 🔥 STEP 1: mark editing FIRST
+    editingLayerIdsRef.current.add(layer.id);
 
     onCommit(layer.id, {
       isNew: false,
       __local: true,
       __editing: true,
     });
+
+    // 🔥 STEP 2: focus AFTER state reflects editing
+    requestAnimationFrame(() => {
+      const el = textRef.current;
+      if (!el) return;
+
+      el.focus();
+      placeCaretAtEnd(el);
+    });
+
+    didEditRef.current = true;
   }, []);
 
   const commitLive = () => {
@@ -89,18 +95,21 @@ export function NoteLayerView({
     });
 
     requestAnimationFrame(() => {
-      textRef.current?.focus(); 
+      const el = textRef.current;
+      if (!el) return;
+
+      el.focus();
+
+      // 🔥 CRITICAL: force caret to appear
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
     });
   };
-
-  useEffect(() => {
-    const el = textRef.current;
-    if (!el) return;
-
-    requestAnimationFrame(() => {
-      fitTextToBox(el, 8);
-    });
-  }, [layer.width, layer.height, layer.style.fontSize, layer.value]);
 
   return (
     <div
@@ -117,78 +126,62 @@ export function NoteLayerView({
         zIndex: 1,
       }}
       onPointerDown={(e) => {
-        e.stopPropagation();
+        const isSelected = layer.__selected === true;
+        const isEditing = editingLayerIdsRef.current.has(layer.id);
 
-        const isEditingNow = editingLayerIdsRef.current.has(layer.id);
+        // already editing → allow typing
+        if (isEditing) return;
 
-        // 🔥 CRITICAL: allow caret clicks but block drag logic
-        if (isEditingNow) {
+        // FIRST CLICK → SELECT
+        const now = Date.now();
+        const last = lastClickTimeRef.current;
+
+        // FIRST CLICK → SELECT
+        if (!isSelected) {
+          lastClickTimeRef.current = now;
+          e.stopPropagation();
+          onCommit(layer.id, { __select: true });
           return;
         }
 
-        // Prevent text highlight when not editing (keeps drag smooth)
-        e.preventDefault();
-
-        // First click = selection (Miro behavior)
-        onCommit(layer.id, { __select: true });
-
-        // New note = instant edit (keep feature)
-        if (layer.isNew) {
+        // SECOND CLICK → EDIT
+        if (now - last < 350) {
+          e.stopPropagation();
           enterEditMode();
           return;
         }
 
-        let moved = false;
-
-        const onMove = () => {
-          moved = true;
-          window.removeEventListener("pointermove", onMove);
-          window.removeEventListener("pointerup", onUp);
-
-          // Start drag instead of edit
-          onPointerDown?.(e);
-        };
-
-        const onUp = () => {
-          window.removeEventListener("pointermove", onMove);
-          window.removeEventListener("pointerup", onUp);
-
-          // 🎯 SECOND CLICK (no drag) = EDIT MODE (MIRO EXACT UX)
-          if (!moved && !editingLayerIdsRef.current.has(layer.id)) {
-            enterEditMode();
-          }
-        };
-
-        window.addEventListener("pointermove", onMove);
-        window.addEventListener("pointerup", onUp);
-      }}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        enterEditMode();
+        // OTHERWISE DRAG
+        lastClickTimeRef.current = now;
+        if (onPointerDown) onPointerDown(e);
       }}
     >
-      {/* 🔒 SCALE WHOLE CONTENT (TEXT + PADDING) */}
       <div
         style={{
           width: "100%",
           height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+
+          display: "flex", // 🔥 ADD
+          alignItems: "center", // 🔥 VERTICAL CENTER
+          justifyContent: "center", // 🔥 HORIZONTAL CENTER
         }}
       >
         {/* 🔒 STATIC CONTENT BLOCK */}
         <div
           ref={textRef}
           contentEditable={isEditing}
+          data-placeholder="Type something"
           data-base-font-size={layer.style.fontSize}
           suppressContentEditableWarning
           spellCheck={false}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              document.execCommand("insertLineBreak");
+              e.preventDefault();
+            }
+          }}
           onInput={() => {
             if (isManualResizingRef.current) return;
-
-            // 🔥 auto shrink while typing (Miro behavior)
-            fitTextToBox(textRef.current);
 
             didEditRef.current = true;
             commitLive();
@@ -209,7 +202,7 @@ export function NoteLayerView({
             wordBreak: "break-word",
             overflowWrap: "break-word",
 
-            fontSize: getNoteFontSize(layer),
+            fontSize: layer.style.fontSize,
             fontWeight: 500,
             lineHeight: "1.25",
 
@@ -217,12 +210,24 @@ export function NoteLayerView({
             overflowWrap: "break-word",
 
             outline: "none",
+            pointerEvents: "auto",
             border: "none",
             background: "transparent",
             caretColor: "#000",
           }}
         />
       </div>
+      <style jsx>{`
+        [contenteditable][data-placeholder]:empty::before {
+          content: attr(data-placeholder);
+          color: #9ca3af;
+          pointer-events: none;
+        }
+
+        [contenteditable="true"] {
+          caret-color: #000;
+        }
+      `}</style>
     </div>
   );
 }
@@ -234,35 +239,4 @@ function placeCaretAtEnd(el) {
   const sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);
-}
-
-function getNoteFontSize(layer) {
-  return layer.style.fontSize;
-}
-
-function getNoteScale(layer) {
-  const BASE = 120; // reference Miro note size
-  const scale = Math.min(layer.width / BASE, layer.height / BASE, 1);
-
-  return Math.max(0.4, scale); // never disappears
-}
-
-function fitTextToBox(el, min = 8) {
-  if (!el) return;
-
-  const baseSize = parseFloat(el.dataset.baseFontSize);
-  if (baseSize) el.style.fontSize = baseSize + "px";
-
-  let fontSize = parseFloat(getComputedStyle(el).fontSize);
-
-  const fits = () => {
-    return (
-      el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight
-    );
-  };
-
-  while (!fits() && fontSize > min) {
-    fontSize -= 1;
-    el.style.fontSize = fontSize + "px";
-  }
 }

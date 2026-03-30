@@ -13,32 +13,26 @@ export default function PlaygroundButton({
 
   const handleClick = () => {
     if (!disabled) {
-      router.push("/dashboard/playground"); 
+      router.push("/dashboard/playground/odoboard");
     }
   };
 
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={disabled}
-      className={`
-        inline-flex items-center gap-2 px-4 py-2 rounded-lg 
-        bg-indigo-600 text-white 
-        hover:bg-indigo-700 
-        hover:scale-[1.03]
-        active:scale-90 
-        transition-transform duration-200 ease-out
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${className}
-      `}
-    >
-      <span className="flex items-center text-lg">
-        {icon ? icon : PBIcons.maze}
-      </span>
-      <span>{label}</span>
-    </button>
-  );
+  // REPLACE the return in PlaygroundButton.jsx
+// REPLACE the return statement with this:
+return (
+  <button
+    type="button"
+    onClick={handleClick}
+    className={`
+      inline-flex items-center gap-2 px-6 py-2 rounded-md 
+      bg-[#facc15] text-black font-bold text-sm
+      hover:bg-[#eab308] active:scale-95 transition-all
+      ${className}
+    `}
+  >
+    <span>{label}</span>
+  </button>
+);
 }
 
 export const PBIcons = {

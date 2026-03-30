@@ -27,9 +27,10 @@ export default function Signuppage() {
       const res = await fetch("http://localhost:8000/user/signup/", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json",
+        headers: {
+          "Content-Type": "application/json",
           "X-CSRFToken": getCookie("csrftoken"),
-         },
+        },
         body: JSON.stringify({ username, email, password }),
       });
 
@@ -58,11 +59,33 @@ export default function Signuppage() {
 
       <div className="card">
         <h2 className="title">Create an Account</h2>
+        {/* 🔥 OAuth Buttons (Non-breaking UI) */}
+        <div className="oauthBox">
+          <button
+            className="oauthBtn github"
+            onClick={() => {
+              window.location.href = "http://localhost:8000/user/auth/github/";
+            }}
+          >
+            Continue with GitHub
+          </button>
+
+          <button
+            className="oauthBtn google"
+            onClick={() => {
+              window.location.href = "http://localhost:8000/user/auth/google/";
+            }}
+          >
+            Continue with Google
+          </button>
+
+          <div className="divider">
+            <span>OR</span>
+          </div>
+        </div>
 
         {/* Backend Error Message */}
-        {errorMsg && (
-          <div className="errorBox">{errorMsg}</div>
-        )}
+        {errorMsg && <div className="errorBox">{errorMsg}</div>}
 
         {/* Username */}
         <label className="label">Username</label>
@@ -70,11 +93,12 @@ export default function Signuppage() {
           className="input"
           placeholder="Enter username"
           value={username}
-          onChange={(e) => { setUsername(e.target.value); setErrorMsg(""); }}
+          onChange={(e) => {
+            setUsername(e.target.value);
+            setErrorMsg("");
+          }}
         />
-        {submitted && !username && (
-          <p className="fieldErr">Required</p>
-        )}
+        {submitted && !username && <p className="fieldErr">Required</p>}
 
         {/* Email */}
         <label className="label">Email</label>
@@ -82,11 +106,12 @@ export default function Signuppage() {
           className="input"
           placeholder="Enter email"
           value={email}
-          onChange={(e) => { setEmail(e.target.value); setErrorMsg(""); }}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setErrorMsg("");
+          }}
         />
-        {submitted && !email && (
-          <p className="fieldErr">Required</p>
-        )}
+        {submitted && !email && <p className="fieldErr">Required</p>}
 
         {/* Password */}
         <label className="label">Password</label>
@@ -95,18 +120,19 @@ export default function Signuppage() {
           placeholder="Enter password"
           type="password"
           value={password}
-          onChange={(e) => { setPassword(e.target.value); setErrorMsg(""); }}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setErrorMsg("");
+          }}
         />
-        {submitted && !password && (
-          <p className="fieldErr">Required</p>
-        )}
+        {submitted && !password && <p className="fieldErr">Required</p>}
 
         <button onClick={handleSignup} disabled={loading} className="btn">
           {loading ? <span className="loader" /> : "Sign Up"}
         </button>
 
         <p className="smallText">
-          Already registered? <span className="loginNav">Login</span>
+          Already registered? <span className="loginNav" onClick = {()=>{router.push("/login")}}>Login</span>
         </p>
       </div>
 
@@ -117,106 +143,167 @@ export default function Signuppage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #f9fafb;
+          background: #000000;
           position: relative;
+          font-family: "Inter", sans-serif;
         }
+
         .logoWrapper {
           position: absolute;
           top: 24px;
           left: 24px;
         }
+
         .card {
           width: 100%;
-          max-width: 380px;
-          background: white;
-          padding: 28px 30px;
-          border-radius: 16px;
-          box-shadow: 0px 2px 14px rgba(0,0,0,0.06);
-          border: 1px solid #e5e7eb;
+          max-width: 400px;
+          background: #0a0a0a;
+          padding: 40px;
+          border-radius: 12px;
+          border: 1px solid #1a1a1a;
+          box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5);
         }
+
         .title {
-          font-size: 20px;
-          font-weight: 700;
-          color: #111827;
-          margin-bottom: 18px;
-          text-align: center;
+          font-size: 24px;
+          font-weight: 800;
+          color: #ffffff;
+          margin-bottom: 24px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
         }
-        .label {
-          font-size: 13px;
+
+        .oauthBox {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+
+        .oauthBtn {
+          width: 100%;
+          padding: 12px;
+          border-radius: 6px;
           font-weight: 600;
-          color: #374151;
-          margin-bottom: 4px;
+          border: 1px solid #333;
+          background: transparent;
+          color: #ccc;
+          cursor: pointer;
+          transition: all 0.2s ease;
         }
+
+        .oauthBtn:hover {
+          background: #111;
+          color: #fff;
+          border-color: #facc15;
+        }
+
+        .divider {
+          text-align: center;
+          font-size: 11px;
+          color: #444;
+          margin: 12px 0;
+        }
+
+        .label {
+          display: block;
+          font-size: 11px;
+          margin-bottom: 6px;
+          font-weight: 700;
+          color: #666;
+          text-transform: uppercase;
+        }
+
         .input {
           width: 100%;
-          padding: 10px 12px;
-          border: 1.4px solid #d1d5db;
-          border-radius: 8px;
+          padding: 12px;
+          background: #111;
+          border: 1px solid #222;
+          border-radius: 6px;
           font-size: 14px;
-          margin-bottom: 4px;
-          transition: all 0.25s ease;
+          color: white;
+          margin-bottom: 12px;
+          transition: border 0.3s ease;
         }
+
         .input:focus {
-          border-color: #6366f1;
-          box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+          outline: none;
+          border-color: #facc15;
         }
-        .fieldErr {
-          color: #dc2626;
-          font-size: 12px;
-          margin-bottom: 8px;
-        }
-        .errorBox {
-          background: #fee2e2;
-          color: #b91c1c;
-          font-size: 13px;
-          text-align: center;
-          padding: 10px;
-          border-radius: 8px;
-          margin-bottom: 14px;
-        }
+
         .btn {
           width: 100%;
-          padding: 10px;
-          margin-top: 12px;
-          background: #4f46e5;
-          color: white;
+          padding: 14px;
+          margin-top: 10px;
+          background: #facc15;
+          color: black;
           border: none;
-          border-radius: 8px;
-          font-weight: 600;
+          border-radius: 6px;
+          font-weight: 800;
+          text-transform: uppercase;
           cursor: pointer;
-          transition: all 0.25s ease;
+          transition: all 0.2s ease;
         }
+
         .btn:hover {
-          background: #4338ca;
-          transform: translateY(-1px);
+          background: #eab308;
         }
+
+        .btn:active {
+          transform: scale(0.98);
+        }
+
         .btn:disabled {
-          background: #9ca3af;
+          background: #555;
           cursor: not-allowed;
-          transform: none;
         }
+
+        .errorBox {
+          background: rgba(220, 38, 38, 0.1);
+          color: #ef4444;
+          font-size: 13px;
+          padding: 10px;
+          border-radius: 6px;
+          border: 1px solid #7f1d1d;
+          margin-bottom: 15px;
+        }
+
+        .fieldErr {
+          font-size: 11px;
+          color: #ef4444;
+          margin-top: -8px;
+          margin-bottom: 10px;
+        }
+
+        .smallText {
+          text-align: center;
+          font-size: 13px;
+          margin-top: 20px;
+          color: #666;
+        }
+
+        .loginNav {
+          font-weight: 600;
+          color: #facc15;
+          cursor: pointer;
+        }
+
         .loader {
           width: 18px;
           height: 18px;
-          border: 3px solid white;
+          border: 3px solid black;
           border-bottom-color: transparent;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }
+
         @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        .smallText {
-          text-align: center;
-          font-size: 12px;
-          color: #6b7280;
-          margin-top: 10px;
-        }
-        .loginNav {
-          color: #4f46e5;
-          font-weight: 600;
-          cursor: pointer;
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
         }
       `}</style>
     </div>

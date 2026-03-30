@@ -28,12 +28,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-o(dqq7-7b*43oqr^6@j5i$w0&a9h5hynu+ny^crvzd!830q14b'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-o(dqq7-...")
+DEBUG = os.getenv("DEBUG", "true") == "true"
 
 
 # Application definition
@@ -53,8 +49,9 @@ INSTALLED_APPS = [
     'boardOrganisation',
     'rest_framework',
     'realtime',
-
-
+    'workspaces',
+    'griff',
+    
 ]
 
 
@@ -64,12 +61,15 @@ ASGI_APPLICATION = 'EncryptFileSystem.asgi.application'
 
 REDIS_ENABLED = os.getenv("REDIS_ENABLED", "false") == "true"
 
+# NEW
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+
 if REDIS_ENABLED:
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
-                "hosts": [("127.0.0.1", 6379)],
+                "hosts": [REDIS_URL],  # ✅ from env
                 "capacity": 2000,
                 "expiry": 10,
             },
@@ -99,6 +99,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
 
 ROOT_URLCONF = 'EncryptFileSystem.urls'
 
@@ -126,13 +128,13 @@ WSGI_APPLICATION = 'EncryptFileSystem.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+import dj_database_url
 
+DATABASES = {
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"
+    )
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -151,6 +153,17 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+CSRF_COOKIE_HTTPONLY = False
 
 
 # Internationalization
@@ -180,11 +193,12 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
+# NEW
 if REDIS_ENABLED:
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": "redis://127.0.0.1:6379/0",
+            "LOCATION": REDIS_URL,  # ✅ from env
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
             }
@@ -212,7 +226,8 @@ EMAIL_USE_SSL = False
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"] + os.getenv("ALLOWED_HOSTS", "").split(",")
+
 
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -221,11 +236,11 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-]
+] + os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
-]
+] + os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
 
 CORS_ALLOW_HEADERS = [
     "content-type",
@@ -242,8 +257,8 @@ CORS_ALLOW_METHODS = [
 SESSION_COOKIE_SAMESITE = "None"
 CSRF_COOKIE_SAMESITE = "None"
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = False  # because using http://localhost
-CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
@@ -258,4 +273,15 @@ EMAIL_USE_TLS = True
 
 DEFAULT_FROM_EMAIL = "vj2754108@gmail.com"
 EMAIL_HOST_USER = "vj2754108@gmail.com"
-EMAIL_HOST_PASSWORD = "wxcpbtjkqiurfncn"
+
+
+
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
+GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  

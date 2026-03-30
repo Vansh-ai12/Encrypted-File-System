@@ -26,7 +26,10 @@ urlpatterns = [
     path('board/',include('board.urls')),
     path('boardOrganisation/',include('boardOrganisation.urls')),
     path('realtime/',include('realtime.urls')),
-
+    path("workspaces/", include("workspaces.urls")),
+    path("griff/", include("griff.urls")),
+    path("run/",include("run.urls")),
+   
 ]
 
 if settings.DEBUG:

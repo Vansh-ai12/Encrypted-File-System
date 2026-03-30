@@ -35,13 +35,12 @@ export default function OdoLoader() {
         }
 
         .bar-purple {
-          background: #7c3aed; /* Purple */
+          background: #facc15; /* Yellow (primary theme) */
         }
 
         .bar-navy {
-          background: #0f172a; /* Navy */
+          background: #f97316; /* Orange accent */
         }
-
         .loader-bars .bar:nth-child(2) {
           animation-delay: 0.15s;
         }

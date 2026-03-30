@@ -1,4 +1,6 @@
 from genericpath import exists
+from marshal import version
+from marshal import version
 from xml.etree.ElementPath import ops
 from django.db.models import Max
 
@@ -30,6 +32,8 @@ CURRENT_VERSION_KEY = "board:{board_id}:version"
 class BoardConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
+        
+        print("USER IN SCOPE:", self.scope.get("user"))
         self._last_cursor_ts = 0
 
         self.board_id = self.scope["url_route"]["kwargs"]["board_id"]
@@ -111,35 +115,72 @@ class BoardConsumer(AsyncWebsocketConsumer):
         layers = safe_cache_get(layers_key)
         version_key = CURRENT_VERSION_KEY.format(board_id=self.board_id)
 
-        if layers is None:
+# 🔥 ALWAYS SYNC VERSION WITH DB HEAD (prevents empty history bug)
+        db_head = await self.get_max_version()
+        cached_version = safe_cache_get(version_key)
 
+        if layers is None:
+    # Cold start → rebuild full state from snapshot + ops
             snapshot_layers, snapshot_version = await self.load_latest_snapshot_from_db()
 
-            layers = self.dedupe_layers([
-        self.normalize_layer(l) for l in snapshot_layers
-    ])
+            base_layers = [
+        self.normalize_layer(l) for l in (snapshot_layers or [])
+    ]
+            base_layers = self.dedupe_layers(base_layers)
 
-            ops, max_version = await self.load_operations_from_db(snapshot_version)
+            ops, _ = await self.load_operations_from_db(snapshot_version or 0)
 
-
+            layers = copy.deepcopy(base_layers)
             for op in ops:
                 layers = apply_op(layers, op.payload)
 
-            safe_cache_set(layers_key, layers, timeout=None)
-            safe_cache_set(version_key, max_version, timeout=None)
-
-        else:
             layers = self.dedupe_layers([
-            self.normalize_layer(l) for l in layers
+                self.normalize_layer(l)
+        for l in layers
+        if isinstance(l, dict) and "id" in l
     ])
 
+            safe_cache_set(layers_key, layers, timeout=None)
+
+    # 🔥 ONLY set version on cold cache
+            safe_cache_set(version_key, db_head or 0, timeout=None)
+            current_version = db_head or 0
+
+        else:
+    # Cache exists → DO NOT override version cursor
+            layers = self.dedupe_layers([
+        self.normalize_layer(l) for l in layers
+    ])
+
+            if cached_version is None:
+                current_version = db_head or 0
+                safe_cache_set(version_key, current_version, timeout=None)
+            else:
+                current_version = cached_version
+
+        current_version = db_head or 0
+        max_version = db_head or 0
+
+
+        if cached_version is None:
+    # cache cold → restore to HEAD so history exists after refresh
+            db_head = await self.get_max_version()
+            current_version = db_head or 0
+            safe_cache_set(version_key, current_version, timeout=None)
+        else:
+            current_version = cached_version
+
+# TRUE history head (for redo boundary)
+        max_version = await self.get_max_version()
 
         await self.send(json.dumps({
     "type": "INIT_STATE",
     "layers": layers,
-    "version": safe_cache_get(version_key, 0),
-    "maxVersion": await self.get_max_version(),
+    "version": current_version,   # 🔥 NEVER 0 on refresh if history exists
+    "maxVersion": max_version,
 }))
+
+
 
 
 
@@ -271,7 +312,7 @@ class BoardConsumer(AsyncWebsocketConsumer):
             await self.handle_commit(data)
 
         elif data["type"] == "UNDO":
-            await self.handle_undo()
+            await self.handle_undo(data.get("layerId"))
         
         elif data["type"] == "REDO":
             await self.handle_redo()
@@ -383,36 +424,53 @@ class BoardConsumer(AsyncWebsocketConsumer):
 
     # ---------- CURRENT ----------
         # ---------- CURRENT ----------
-        current_layers = safe_cache_get(layers_key) or []
+        # 🔥 CRITICAL FIX: deep copy current layers to avoid reference mutation (PENCIL UNDO BUG)
+        cached = safe_cache_get(layers_key) or []
+        current_layers = copy.deepcopy(cached)
         current_layers = [self.normalize_layer(l) for l in current_layers]
 
+
 # ---------- INCOMING ----------
+        incoming_layers_raw = data.get("layers", None)
+
+# 🛑 HARD GUARD: NEVER accept accidental empty commits (UI race / history frames)
+        if incoming_layers_raw is None:
+            return
+
+        # 🛑 Only block accidental NULL commits, NOT real empty states
+        if incoming_layers_raw is None:
+            return
+
+
         incoming_layers = [
-    self.normalize_layer(l) for l in data.get("layers", [])
+    self.normalize_layer(l) for l in incoming_layers_raw
 ]
         incoming_layers = self.enforce_layer_limits(
     self.dedupe_layers(incoming_layers)
 )
 
+
 # ---------- PERSIST OPS ----------
         ops = diff_layers(current_layers, incoming_layers)
+
+# 🛑 TRUE NO-OP
         if not ops:
-            return  # 🔒 DO NOT increment version
+            return
 
-# 🔥 WRITE TO REDIS ONLY AFTER CONFIRMED CHANGE
-        safe_cache_set(layers_key, incoming_layers, timeout=None)
-
-# ✅ GET VERSION FIRST
         current_version = safe_cache_get(version_key, 0)
-
-        if current_version == 0:
-            exists = await self.snapshot_exists()
-            if not exists:
-                await self.persist_snapshot(current_layers)
-
-# ✅ NOW INCREMENT VERSION
         new_version = current_version + 1
+
+# 1️⃣ Persist ops at EXACT same version
+        await self.persist_operations_from_diff(ops, new_version)
+
+# 2️⃣ Update cache layers (authoritative state)
+        safe_cache_set(layers_key, copy.deepcopy(incoming_layers), timeout=None)
+
+# 3️⃣ Update cursor ONCE (DO NOT RE-INCREMENT AGAIN)
         safe_cache_set(version_key, new_version, timeout=None)
+
+
+
 
 
         
@@ -420,28 +478,22 @@ class BoardConsumer(AsyncWebsocketConsumer):
 
 
 
+        current_version = safe_cache_get(version_key, 0)
 
-        await self.persist_operations_from_diff(
-    ops=ops,
-    version=new_version
+# 🔥 CRITICAL FIX: UI must follow session head, NOT DB lifetime max
+        max_version = await self.get_max_version()
+
+        await self.channel_layer.group_send(
+    self.group_name,
+    {
+        "type": "layers.replace",
+        "layers": incoming_layers,
+        "version": current_version,
+        "maxVersion": max_version,  # ✅ TRUE HISTORY HEAD
+    }
 )
 
 
-
-
-        current_version = safe_cache_get(version_key, 0)
-        max_version = await self.get_max_version()
-
-    # ---------- BROADCAST ----------
-        await self.channel_layer.group_send(
-        self.group_name,
-        {
-            "type": "layers.replace",
-            "layers": incoming_layers,
-            "version": current_version,
-            "maxVersion": max_version,
-        }
-    )
 
     # ---------- SNAPSHOT ----------
         if current_version > 0 and current_version % 50 == 0:
@@ -454,18 +506,33 @@ class BoardConsumer(AsyncWebsocketConsumer):
 
 
         
-    async def handle_undo(self):
+    async def handle_undo(self, layer_id=None):
         version_key = CURRENT_VERSION_KEY.format(board_id=self.board_id)
-        current_version = safe_cache_get(version_key, 0)
+        current_version = safe_cache_get(version_key)
+        if current_version is None:
+            current_version = await self.get_max_version()
+            safe_cache_set(version_key, current_version, timeout=None)
+
 
         if current_version <= 0:
             return
 
         new_version = current_version - 1
         layers = await self.rebuild_layers_at_version(new_version)
+        if layer_id:
+            current_layers = safe_cache_get(f"board:{self.board_id}:layers", [])
+            current_map = {l["id"]: l for l in current_layers}
+            rebuilt_map = {l["id"]: l for l in layers}
+
+            if layer_id in rebuilt_map:
+                current_map[layer_id] = rebuilt_map[layer_id]
+
+            layers = list(current_map.values())
 
         safe_cache_set(version_key, new_version, timeout=None)
         safe_cache_set(f"board:{self.board_id}:layers", layers, timeout=None)
+
+        max_version = await self.get_max_version()
 
         await self.channel_layer.group_send(
     self.group_name,
@@ -473,9 +540,10 @@ class BoardConsumer(AsyncWebsocketConsumer):
         "type": "layers.replace",
         "layers": layers,
         "version": new_version,
-        "maxVersion": await self.get_max_version(),
+        "maxVersion": max_version,  # 🔥 FIX: keep redo head
     }
 )
+
 
 
     
@@ -499,9 +567,11 @@ class BoardConsumer(AsyncWebsocketConsumer):
         "type": "layers.replace",
         "layers": layers,
         "version": new_version,
-        "maxVersion": await self.get_max_version(),
+        "maxVersion": max_version,  # ✅ TRUE HEAD (NOT cursor)
     }
 )
+
+
 
 
     
@@ -644,7 +714,7 @@ class BoardConsumer(AsyncWebsocketConsumer):
     def rebuild_layers_at_version(self, version):
         from board.models import BoardSnapshot, BoardOperation
 
-    # ✅ snapshot MUST be <= target version
+    # 🔹 Load closest snapshot <= target version
         snap = (
         BoardSnapshot.objects
         .filter(board_id=self.board_id, version__lte=version)
@@ -653,8 +723,9 @@ class BoardConsumer(AsyncWebsocketConsumer):
     )
 
         base_version = snap.version if snap else 0
-        layers = snap.layers if snap else []
+        layers = copy.deepcopy(snap.layers) if snap else []
 
+    # 🔹 Replay ops deterministically
         ops = BoardOperation.objects.filter(
         board_id=self.board_id,
         version__gt=base_version,
@@ -664,76 +735,101 @@ class BoardConsumer(AsyncWebsocketConsumer):
         for op in ops:
             layers = apply_op(layers, op.payload)
 
-        return layers
+    # 🔥 CRITICAL FIX: NORMALIZE AFTER REBUILD (THIS WAS MISSING)
+        normalized = [
+        self.normalize_layer(l)
+        for l in layers
+        if isinstance(l, dict) and "id" in l
+    ]
+
+    # 🔥 ALSO DEDUPE (prevents ghost mutation & duplicate IDs)
+        normalized = self.dedupe_layers(normalized)
+
+        return normalized
+
 
     def normalize_layer(self, layer):
         t = layer.get("type")
-        style = layer.get("style") or {}
+
+    # 🛑 CRITICAL: NEVER mutate original style dict
+        existing_style = copy.deepcopy(layer.get("style") or {})
 
     # ---------- RECTANGLE ----------
         if t == "rectangle":
-            style.setdefault("fill", "transparent")
-            style.setdefault("stroke", "#000000")
-            style.setdefault("strokeWidth", 1)
-
             return {
             **layer,
             "width": layer.get("width", 120),
             "height": layer.get("height", 80),
-            "style": style,
+            "style": {
+                "fill": existing_style.get("fill", "transparent"),
+                "stroke": existing_style.get("stroke", "#000000"),
+                "strokeWidth": existing_style.get("strokeWidth", 1),
+                **existing_style,
+            },
         }
 
     # ---------- ELLIPSE ----------
         if t == "ellipse":
-            style.setdefault("fill", "transparent")
-            style.setdefault("stroke", "#000000")
-            style.setdefault("strokeWidth", 1)
-
             return {
             **layer,
             "width": layer.get("width", 120),
             "height": layer.get("height", 120),
-            "style": style,
+            "style": {
+                "fill": existing_style.get("fill", "transparent"),
+                "stroke": existing_style.get("stroke", "#000000"),
+                "strokeWidth": existing_style.get("strokeWidth", 1),
+                **existing_style,
+            },
         }
 
-    # ---------- PATH ----------
+    # ---------- PATH (PENCIL) ----------
         if t == "path":
-            style.setdefault("stroke", "#000000")
-            style.setdefault("strokeWidth", 1)
-
             return {
-            **layer,
-            "style": style,
-        }
+        **layer,
+        "points": layer.get("points", []),
+        "width": layer.get("width", 1),
+        "height": layer.get("height", 1),
+        "__isArrow": layer.get("__isArrow"),
+        "__bendPoint": layer.get("__bendPoint"),
+        "__arrowHead": layer.get("__arrowHead"),
+        "style": {
+            "stroke": existing_style.get("stroke", "#000000"),
+            "strokeWidth": existing_style.get("strokeWidth", 2),
+            **existing_style,
+        },
+    }
 
     # ---------- TEXT ----------
         if t == "text":
-            style.setdefault("textColor", "#000000")
-            style.setdefault("fontSize", 20)
-
             return {
             **layer,
             "value": layer.get("value", ""),
             "width": layer.get("width", 10),
             "height": layer.get("height", 20),
-            "style": style,
+            "style": {
+                "textColor": existing_style.get("textColor", "#000000"),
+                "fontSize": existing_style.get("fontSize", 20),
+                **existing_style,
+            },
         }
 
     # ---------- NOTE ----------
         if t == "note":
-            style.setdefault("fill", "#FFF59D")
-            style.setdefault("textColor", "#000000")
-            style.setdefault("fontSize", 20)
-
             return {
             **layer,
             "value": layer.get("value", ""),
             "width": layer.get("width", 120),
             "height": layer.get("height", 40),
-            "style": style,
+            "style": {
+                "fill": existing_style.get("fill", "#FFF59D"),
+                "textColor": existing_style.get("textColor", "#000000"),
+                "fontSize": existing_style.get("fontSize", 20),
+                **existing_style,
+            },
         }
 
         return layer
+
 
 
     def dedupe_layers(self, layers):
@@ -784,16 +880,30 @@ def diff_layers(prev, next):
 
         before = prev_map[lid]
 
-        # 🚫 IGNORE EDITING / LIVE NOISE
+        # 🔥 CRITICAL: stable deep compare for pencil paths
+        before_points = before.get("points", []) or []
+        after_points = layer.get("points", []) or []
+
+        points_equal = (
+    len(before_points) == len(after_points) and
+    all(
+        bp.get("x") == ap.get("x") and bp.get("y") == ap.get("y")
+        for bp, ap in zip(before_points, after_points)
+    )
+)
+
         if (
-            before.get("value") == layer.get("value") and
-            before.get("width") == layer.get("width") and
-            before.get("height") == layer.get("height") and
-            before.get("x") == layer.get("x") and
-            before.get("y") == layer.get("y") and
-            before.get("style") == layer.get("style")
+    before.get("value") == layer.get("value") and
+    before.get("width") == layer.get("width") and
+    before.get("height") == layer.get("height") and
+    before.get("x") == layer.get("x") and
+    before.get("y") == layer.get("y") and
+    before.get("style") == layer.get("style") and
+    before.get("__edgeArrows") == layer.get("__edgeArrows") and 
+    points_equal
         ):
             continue
+
 
         ops.append({
             "type": "UPDATE",
@@ -801,12 +911,20 @@ def diff_layers(prev, next):
             "after": layer,
         })
 
-    for lid, layer in prev_map.items():
-        if lid not in next_map:
-            ops.append({
-                "type": "DELETE",
-                "layer": layer,
-            })
+
+    next_ids = set(next_map.keys())
+    prev_ids = set(prev_map.keys())
+
+    deleted_ids = prev_ids - next_ids
+
+    for lid in deleted_ids:
+        # ✅ Allow real deletes even if next becomes empty (required for undo correctness)
+        ops.append({
+            "type": "DELETE",
+            "layer": prev_map[lid],
+        })
+
+
 
     return ops
 
