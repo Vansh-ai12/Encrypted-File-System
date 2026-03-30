@@ -105,7 +105,7 @@ const UsageChart = () => {
         return;
       }
 
-      setTodayTime((prev) => prev + 1);
+
     }, 1000);
 
     // 3️⃣ SYNC WITH BACKEND (every 5 sec)
@@ -122,17 +122,33 @@ const UsageChart = () => {
         const todayEntry = data.find((d) => d.date === today);
 
         if (todayEntry) {
-          setTodayTime((prev) => Math.max(prev, todayEntry.duration));
+          setTodayTime(todayEntry.duration);
           localSeconds = 0;
         }
       } catch (e) {
         console.log("sync failed");
       }
     }, 5000);
+    const sendInterval = setInterval(() => {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      fetch("http://localhost:8000/user/track-visit/", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          duration: 5,
+          timezone: timezone,
+        }),
+      });
+    }, 5000);
 
     return () => {
       clearInterval(liveInterval);
       clearInterval(syncInterval);
+      clearInterval(sendInterval);
     };
   }, []);
 
@@ -259,8 +275,6 @@ export default function DashboardPage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-
 
   const pushNotification = (text, type) => {
     const id = Date.now();

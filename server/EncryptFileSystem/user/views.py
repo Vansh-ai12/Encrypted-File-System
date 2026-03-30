@@ -476,6 +476,9 @@ def login_activity(request):
 
 
 from datetime import date , timedelta
+from django.utils import timezone
+import pytz
+from django.utils import timezone as dj_timezone
 
 @csrf_exempt
 def track_visit(request):
@@ -491,7 +494,15 @@ def track_visit(request):
     except:
         duration = 0
 
-    today = date.today()
+    tz_name = data.get("timezone")
+
+    try:
+        user_tz = pytz.timezone(tz_name) if tz_name else dj_timezone.get_current_timezone()
+    except:
+        user_tz = dj_timezone.get_current_timezone()
+
+    now = dj_timezone.now().astimezone(user_tz)
+    today = now.date()
 
 
     seven_days_ago = today - timedelta(days=6)
@@ -521,7 +532,7 @@ def usage_stats(request):
     if not user:
         return JsonResponse({"error": "Unauthorized"}, status=401)
 
-    today = date.today()
+    today = timezone.localdate()
     seven_days_ago = today - timedelta(days=6)
 
     # 🔥 DELETE OLD DATA (AUTO CLEAN)
