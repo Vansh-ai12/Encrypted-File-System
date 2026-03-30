@@ -1,0 +1,12 @@
+Odon is an Encrypted File Storage System which is end to end encrypted and stores files. Developers can store , modify or acknowledge the files in it. 
+Developers can scribble their with intereactive and collabarative whiteboard(Odoboard).
+
+Below is the live demo:
+
+https://youtu.be/w-8j_v_OEwM
+
+Below is the framework of the Odon
+
+<img width="1989" height="1020" alt="image" src="https://github.com/user-attachments/assets/76c73e1a-b854-42cd-b3e4-355b3a967d47" />
+
+
