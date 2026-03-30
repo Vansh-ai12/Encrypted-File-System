@@ -43,7 +43,7 @@ export const Item = ({ name, imageUrl, isActive, onClick }) => {
       >
         {imageUrl ? (
           <Image
-            src={`http://localhost:8000${imageUrl}`}
+            src={`https://encrypted-file-system-production.up.railway.app${imageUrl}`}
             alt={name}
             width={40}
             height={40}

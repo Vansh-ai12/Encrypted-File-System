@@ -3,7 +3,7 @@ let csrfReady = false;
 export async function ensureCsrf() {
   if (csrfReady) return;
 
-  await fetch("http://localhost:8000/user/csrf/", {
+  await fetch("https://encrypted-file-system-production.up.railway.app/user/csrf/", {
     credentials: "include",
   });
 

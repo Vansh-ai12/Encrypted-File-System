@@ -24,7 +24,7 @@ export default function Signuppage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/user/signup/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/user/signup/", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -64,7 +64,7 @@ export default function Signuppage() {
           <button
             className="oauthBtn github"
             onClick={() => {
-              window.location.href = "http://localhost:8000/user/auth/github/";
+              window.location.href = "https://encrypted-file-system-production.up.railway.app/user/auth/github/";
             }}
           >
             Continue with GitHub
@@ -73,7 +73,7 @@ export default function Signuppage() {
           <button
             className="oauthBtn google"
             onClick={() => {
-              window.location.href = "http://localhost:8000/user/auth/google/";
+              window.location.href = "https://encrypted-file-system-production.up.railway.app/user/auth/google/";
             }}
           >
             Continue with Google

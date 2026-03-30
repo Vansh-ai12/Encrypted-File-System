@@ -48,7 +48,7 @@ export default function ClusterModal({ isOpen, onClose, onCreated }) {
     setLoading(true);
 
     try {
-      const workspaceRes = await fetch("http://localhost:8000/workspaces/", {
+      const workspaceRes = await fetch("https://encrypted-file-system-production.up.railway.app/workspaces/", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -98,7 +98,7 @@ export default function ClusterModal({ isOpen, onClose, onCreated }) {
         formData.append("mimeType", detectedMime);
         formData.append("size", selectedFile.size);
 
-        const uploadRes = await fetch("http://localhost:8000/uploads/", {
+        const uploadRes = await fetch("https://encrypted-file-system-production.up.railway.app/uploads/", {
           method: "POST",
           credentials: "include",
           headers: {

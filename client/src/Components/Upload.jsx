@@ -22,7 +22,7 @@ export default function UploadButton() {
     const encryptedPayload = await encryptData(selectedFile, "1234");
 
     try {
-      const res = await fetch("http://localhost:8000/uploads/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/uploads/", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

@@ -25,7 +25,7 @@ export const List = () => {
     const fetchOrgs = async () => {
       try {
         const res = await fetch(
-          "http://localhost:8000/boardOrganisation/getOrganisations/",
+          "https://encrypted-file-system-production.up.railway.app/boardOrganisation/getOrganisations/",
           {
             method: "GET",
             credentials: "include", // IMPORTANT for cookies
@@ -59,7 +59,7 @@ export const List = () => {
 const handleSelect = async (id) => {
   try {
     const res = await fetch(
-      "http://localhost:8000/boardOrganisation/setActiveOrganisation/",
+      "https://encrypted-file-system-production.up.railway.app/boardOrganisation/setActiveOrganisation/",
       {
         method: "POST",
         credentials: "include",

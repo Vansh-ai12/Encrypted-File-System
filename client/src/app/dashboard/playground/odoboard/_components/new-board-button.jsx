@@ -26,7 +26,7 @@ export const NewBoardButton = () => {
     }
 
     try {
-      const res = await fetch("http://localhost:8000/board/createBoard/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/board/createBoard/", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" ,

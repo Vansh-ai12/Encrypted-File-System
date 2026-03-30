@@ -13,7 +13,7 @@ export default function AuthWrapper({ children }) {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const res = await fetch("http://localhost:8000/user/check/", {
+        const res = await fetch("https://encrypted-file-system-production.up.railway.app/user/check/", {
           credentials: "include",
         });
 

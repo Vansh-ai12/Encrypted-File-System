@@ -49,7 +49,7 @@ export const BoardList = ({ search, favorites }) => {
     try {
       setLoading(true);
       const res = await fetch(
-        `http://localhost:8000/board/getBoards/?orgId=${activeOrgId}`,
+        `https://encrypted-file-system-production.up.railway.app/board/getBoards/?orgId=${activeOrgId}`,
         { credentials: "include" }
       );
       const json = await res.json();
@@ -98,7 +98,7 @@ export const BoardList = ({ search, favorites }) => {
 
     try {
 
-      await fetch("http://localhost:8000/board/toggleFavorite/", {
+      await fetch("https://encrypted-file-system-production.up.railway.app/board/toggleFavorite/", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json",
@@ -179,7 +179,7 @@ export const BoardList = ({ search, favorites }) => {
 
               <div className="relative w-full h-[150px] rounded-t-xl overflow-hidden">
                 <img
-                  src={`http://localhost:8000${board.imageUrl}`}
+                  src={`https://encrypted-file-system-production.up.railway.app${board.imageUrl}`}
                   className="w-full h-full object-cover object-center transition duration-300
              group-hover:brightness-95 group-hover:scale-[1.01]"
                   alt={board.title}

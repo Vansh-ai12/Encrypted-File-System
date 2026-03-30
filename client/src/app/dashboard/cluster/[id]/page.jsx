@@ -115,7 +115,7 @@ export default function ClusterView() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch("http://localhost:8000/user/check/", {
+        const res = await fetch("https://encrypted-file-system-production.up.railway.app/user/check/", {
           credentials: "include",
         });
 
@@ -144,7 +144,7 @@ export default function ClusterView() {
     const fetchAndDecrypt = async () => {
       try {
         const filesRes = await fetch(
-          `http://localhost:8000/uploads/list/?workspace_id=${id}`,
+          `https://encrypted-file-system-production.up.railway.app/uploads/list/?workspace_id=${id}`,
           {
             credentials: "include",
           },
@@ -166,7 +166,7 @@ export default function ClusterView() {
           }
         }
         const workspaceRes = await fetch(
-          `http://localhost:8000/workspaces/${id}/`,
+          `https://encrypted-file-system-production.up.railway.app/workspaces/${id}/`,
           { credentials: "include" },
         );
 
@@ -219,7 +219,7 @@ export default function ClusterView() {
 
       const encrypted = await encryptFile(file, password);
 
-      const res = await fetch("http://localhost:8000/uploads/update/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/uploads/update/", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -252,7 +252,7 @@ export default function ClusterView() {
       const zip = new JSZip();
 
       for (let file of files) {
-        const res = await fetch("http://localhost:8000/uploads/view/", {
+        const res = await fetch("https://encrypted-file-system-production.up.railway.app/uploads/view/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -392,7 +392,7 @@ export default function ClusterView() {
         formData.append("mimeType", file.type);
         formData.append("size", file.size);
 
-        const res = await fetch("http://localhost:8000/uploads/", {
+        const res = await fetch("https://encrypted-file-system-production.up.railway.app/uploads/", {
           method: "POST",
           credentials: "include",
           body: formData,
@@ -405,7 +405,7 @@ export default function ClusterView() {
 
       // 🔥 refresh files list
       const filesRes = await fetch(
-        `http://localhost:8000/uploads/list/?workspace_id=${id}`,
+        `https://encrypted-file-system-production.up.railway.app/uploads/list/?workspace_id=${id}`,
         { credentials: "include" },
       );
 
@@ -423,7 +423,7 @@ export default function ClusterView() {
 
   const handleDeleteFile = async (fileId) => {
     try {
-      const res = await fetch("http://localhost:8000/uploads/delete/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/uploads/delete/", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -649,7 +649,7 @@ export default function ClusterView() {
                     setIsDecrypting(true);
 
                     const res = await fetch(
-                      "http://localhost:8000/uploads/view/",
+                      "https://encrypted-file-system-production.up.railway.app/uploads/view/",
                       {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -1110,7 +1110,7 @@ export default function ClusterView() {
                   setAiInput(""); // 🔥 CLEAR INPUT IMMEDIATELY
 
                   const res = await fetch(
-                    "http://localhost:8000/griff/generate_response/",
+                    "https://encrypted-file-system-production.up.railway.app/griff/generate_response/",
                     {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },

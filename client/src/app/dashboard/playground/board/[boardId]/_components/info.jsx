@@ -48,7 +48,7 @@ export const Info = memo(() => {
   useEffect(() => {
     if (!boardId) return;
 
-    fetch(`http://localhost:8000/board/getBoardName/${boardId}/`, {
+    fetch(`https://encrypted-file-system-production.up.railway.app/board/getBoardName/${boardId}/`, {
       credentials: "include",
     })
       .then((res) => res.json())
@@ -85,7 +85,7 @@ export const Info = memo(() => {
     setLoadingRename(true);
 
     try {
-      const res = await fetch("http://localhost:8000/board/renameBoard/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/board/renameBoard/", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -114,7 +114,7 @@ export const Info = memo(() => {
     setLoadingDelete(true);
 
     try {
-      const res = await fetch("http://localhost:8000/board/removeBoard/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/board/removeBoard/", {
         method: "POST",
         credentials: "include",
         headers: {

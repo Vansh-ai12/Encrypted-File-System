@@ -42,7 +42,7 @@ export default function CreateOrganization() {
       if (previewFile) formData.append("imgUrl", previewFile);
 
       const res = await fetch(
-        "http://localhost:8000/boardOrganisation/addOrganisation/",
+        "https://encrypted-file-system-production.up.railway.app/boardOrganisation/addOrganisation/",
         { method: "POST", credentials: "include", body: formData }
       );
 

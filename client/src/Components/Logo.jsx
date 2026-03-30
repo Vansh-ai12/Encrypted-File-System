@@ -18,7 +18,7 @@ export default function OdonLogo({ size = 64, className = "" }) {
       }
 
       // fallback → real check
-      const res = await fetch("http://localhost:8000/user/check/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/user/check/", {
         credentials: "include",
       });
 

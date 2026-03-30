@@ -18,7 +18,7 @@ export default function useGlobalTracking() {
 
       const duration = Math.floor((Date.now() - startRef.current) / 1000);
 
-      fetch("http://localhost:8000/user/track-visit/", {
+      fetch("https://encrypted-file-system-production.up.railway.app/user/track-visit/", {
         method: "POST",
         credentials: "include",
         headers: {

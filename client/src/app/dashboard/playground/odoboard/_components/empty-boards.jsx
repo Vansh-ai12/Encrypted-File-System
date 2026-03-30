@@ -26,7 +26,7 @@ export const NoBoards = () => {
         organisationId: activeOrgId.toString().trim(), // 🔥 ensure proper format
       };
 
-      const response = await fetch("http://localhost:8000/board/createBoard/", {
+      const response = await fetch("https://encrypted-file-system-production.up.railway.app/board/createBoard/", {
         method: "POST",
         credentials: "include",
         headers: {

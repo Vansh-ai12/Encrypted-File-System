@@ -39,7 +39,7 @@ export const Action = ({ boardId, currentTitle }) => {
 
     setLoadingRename(true);
     try {
-      const res = await fetch("http://localhost:8000/board/renameBoard/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/board/renameBoard/", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json",
@@ -68,7 +68,7 @@ export const Action = ({ boardId, currentTitle }) => {
   const handleDelete = async () => {
     setLoadingDelete(true);
     try {
-      const res = await fetch("http://localhost:8000/board/removeBoard/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/board/removeBoard/", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json",

@@ -13,7 +13,7 @@ export default function AcceptInvite() {
     const accept = async () => {
       try {
         const res = await fetch(
-          `http://localhost:8000/boardOrganisation/acceptInvitation/${token}/`,
+          `https://encrypted-file-system-production.up.railway.app/boardOrganisation/acceptInvitation/${token}/`,
           {
             method: "POST",
             credentials: "include",

@@ -53,7 +53,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
     const id = getCurrentOrgId();
 
     const res = await fetch(
-      "http://localhost:8000/boardOrganisation/getOrganisations/",
+      "https://encrypted-file-system-production.up.railway.app/boardOrganisation/getOrganisations/",
       { credentials: "include" }
     );
 
@@ -76,7 +76,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
     setLoadingMembers(true);
 
     const res = await fetch(
-      `http://localhost:8000/boardOrganisation/getOrganisationMembers/${id}/`,
+      `https://encrypted-file-system-production.up.railway.app/boardOrganisation/getOrganisationMembers/${id}/`,
       { credentials: "include" }
     );
 
@@ -96,7 +96,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
     setLoadingInvites(true);
 
     const res = await fetch(
-      `http://localhost:8000/boardOrganisation/getInvitations/${id}/`,
+      `https://encrypted-file-system-production.up.railway.app/boardOrganisation/getInvitations/${id}/`,
       { credentials: "include" }
     );
 
@@ -131,7 +131,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
 
     const id = getCurrentOrgId();
 
-    await fetch("http://localhost:8000/boardOrganisation/updateMemberRole/", {
+    await fetch("https://encrypted-file-system-production.up.railway.app/boardOrganisation/updateMemberRole/", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -160,7 +160,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
     const id = getCurrentOrgId();
 
     const res = await fetch(
-      "http://localhost:8000/boardOrganisation/removeMember/",
+      "https://encrypted-file-system-production.up.railway.app/boardOrganisation/removeMember/",
       {
         method: "POST",
         credentials: "include",
@@ -190,7 +190,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
     const id = getCurrentOrgId();
 
     const res = await fetch(
-      "http://localhost:8000/boardOrganisation/sendInvitation/",
+      "https://encrypted-file-system-production.up.railway.app/boardOrganisation/sendInvitation/",
       {
         method: "POST",
         credentials: "include",
@@ -220,7 +220,7 @@ export default function ManageOrganisations({ orgId, onClose }) {
     setDeleting(true);
     const id = getCurrentOrgId();
 
-    await fetch("http://localhost:8000/boardOrganisation/deleteOrganisation/", {
+    await fetch("https://encrypted-file-system-production.up.railway.app/boardOrganisation/deleteOrganisation/", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

@@ -21,7 +21,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/user/login/", {
+      const res = await fetch("https://encrypted-file-system-production.up.railway.app/user/login/", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -44,7 +44,7 @@ export default function LoginPage() {
       }
       localStorage.setItem("email", email);
 
-      const sessionRes = await fetch("http://localhost:8000/user/check/", {
+      const sessionRes = await fetch("https://encrypted-file-system-production.up.railway.app/user/check/", {
         method: "GET",
         credentials: "include",
       });
@@ -91,7 +91,7 @@ export default function LoginPage() {
           <button
             className="oauthBtn github"
             onClick={() => {
-              window.location.href = "http://localhost:8000/user/auth/github/";
+              window.location.href = "https://encrypted-file-system-production.up.railway.app/user/auth/github/";
             }}
           >
             Continue with GitHub
@@ -100,7 +100,7 @@ export default function LoginPage() {
           <button
             className="oauthBtn google"
             onClick={() => {
-              window.location.href = "http://localhost:8000/user/auth/google/";
+              window.location.href = "https://encrypted-file-system-production.up.railway.app/user/auth/google/";
             }}
           >
             Continue with Google
